@@ -1,5 +1,6 @@
 #include <stdio.h>
 
+#include "buffer.h"
 #include "editor.h"
 #include "input.h"
 #include "render.h"
@@ -12,6 +13,7 @@ int main(void)
     Editor editor;
 
     editor_init(&editor);
+    editor_insert_row(&editor, 0, "int main(void) {", 16);
 
     if (terminal_enable_raw_mode(&editor) != 0) {
         perror("terminal_enable_raw_mode");

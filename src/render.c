@@ -6,14 +6,27 @@
 #include <string.h>
 #include <unistd.h>
 
-// Draw the blank editor area. The welcome line is centered horizontally and
-// placed near the top third so it remains visible on small terminals.
+static void render_draw_file_row(Editor *editor, AppendBuffer *ab, int row_index)
+{
+    int len = editor->rows[row_index].render_size;
+
+    if (len > editor->screen_cols) {
+        len = editor->screen_cols;
+    }
+
+    abuf_append(ab, editor->rows[row_index].render, len);
+}
+
+// Draw each visible editor row, falling back to the placeholder tilde for empty
+// lines below the current buffer.
 static void render_draw_rows(Editor *editor, AppendBuffer *ab)
 {
     int y;
 
     for (y = 0; y < editor->screen_rows; y++) {
-        if (y == editor->screen_rows / 3) {
+        if (y < editor->row_count) {
+            render_draw_file_row(editor, ab, y);
+        } else if (editor->row_count == 0 && y == editor->screen_rows / 3) {
             const char *welcome = "MiniEditor";
             int welcome_len = (int) strlen(welcome);
             int padding = (editor->screen_cols - welcome_len) / 2;

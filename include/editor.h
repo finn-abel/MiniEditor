@@ -3,9 +3,11 @@
 
 #include <termios.h>
 
+#include "row.h"
+
 /*
  * Stores the shared state for one MiniEditor session.
- * This includes terminal state that must be restored before exit.
+ * This includes terminal state, cursor position, and owned text rows.
  */
 typedef struct Editor {
     int initialized;
@@ -16,6 +18,9 @@ typedef struct Editor {
     int cursor_y;
     int screen_rows;
     int screen_cols;
+    int row_count;
+    int dirty;
+    EditorRow *rows;
     struct termios original_termios;
 } Editor;
 
