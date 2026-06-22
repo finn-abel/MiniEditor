@@ -2,6 +2,7 @@
 
 #include <errno.h>
 #include <sys/ioctl.h>
+#include <sys/select.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -19,6 +20,24 @@ static int terminal_read_byte(void)
     }
 
     return key;
+}
+
+static int terminal_read_byte_with_timeout(void)
+{
+    fd_set read_fds;
+    struct timeval timeout;
+
+    FD_ZERO(&read_fds);
+    FD_SET(STDIN_FILENO, &read_fds);
+
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 50000;
+
+    if (select(STDIN_FILENO + 1, &read_fds, NULL, NULL, &timeout) != 1) {
+        return -1;
+    }
+
+    return terminal_read_byte();
 }
 
 // Save the user's terminal settings, then switch stdin into a byte-at-a-time
@@ -79,19 +98,19 @@ int terminal_read_key(void)
     // Decode common ANSI escape sequences emitted by arrow and navigation
     // keys. Unknown sequences collapse back to Escape for now.
     if (key == '\x1b') {
-        seq0 = terminal_read_byte();
+        seq0 = terminal_read_byte_with_timeout();
         if (seq0 == -1) {
             return '\x1b';
         }
 
-        seq1 = terminal_read_byte();
+        seq1 = terminal_read_byte_with_timeout();
         if (seq1 == -1) {
             return '\x1b';
         }
 
         if (seq0 == '[') {
             if (seq1 >= '0' && seq1 <= '9') {
-                seq2 = terminal_read_byte();
+                seq2 = terminal_read_byte_with_timeout();
                 if (seq2 == '~') {
                     switch (seq1) {
                         case '1':

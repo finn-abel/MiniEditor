@@ -34,6 +34,8 @@ int main(void)
 {
     Editor editor;
     char output[32];
+    int pipe_fds[2];
+    int saved_stdin;
     int rows = -1;
     int cols = -1;
     int result;
@@ -44,6 +46,17 @@ int main(void)
 
     assert(capture_clear_output(output, (int) sizeof(output)) > 0);
     assert(strcmp(output, "\x1b[2J\x1b[H") == 0);
+
+    assert(pipe(pipe_fds) == 0);
+    assert(write(pipe_fds[1], "\x1b", 1) == 1);
+    close(pipe_fds[1]);
+    saved_stdin = dup(STDIN_FILENO);
+    assert(saved_stdin != -1);
+    assert(dup2(pipe_fds[0], STDIN_FILENO) != -1);
+    close(pipe_fds[0]);
+    assert(terminal_read_key() == '\x1b');
+    assert(dup2(saved_stdin, STDIN_FILENO) != -1);
+    close(saved_stdin);
 
     result = terminal_get_window_size(&rows, &cols);
     if (result == 0) {

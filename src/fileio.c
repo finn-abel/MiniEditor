@@ -3,9 +3,8 @@
 #include "fileio.h"
 
 #include "buffer.h"
-#include "render.h"
+#include "prompt.h"
 #include "status.h"
-#include "terminal.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,54 +21,6 @@ static char *fileio_strdup(const char *s)
 
     memcpy(copy, s, len + 1);
     return copy;
-}
-
-static int fileio_prompt_filename(Editor *editor)
-{
-    char buffer[256];
-    int len = 0;
-
-    buffer[0] = '\0';
-
-    while (1) {
-        int key;
-
-        status_set(editor, "Save as: %s", buffer);
-        render_refresh_screen(editor);
-
-        key = terminal_read_key();
-        if (key == '\r' || key == '\n') {
-            if (len == 0) {
-                status_set(editor, "Save cancelled");
-                return -1;
-            }
-
-            free(editor->filename);
-            editor->filename = fileio_strdup(buffer);
-            if (editor->filename == NULL) {
-                status_set(editor, "Could not copy filename");
-                return -1;
-            }
-
-            return 0;
-        }
-
-        if (key == '\x1b') {
-            status_set(editor, "Save cancelled");
-            return -1;
-        }
-
-        if (key == 127 || key == ('h' & 0x1f)) {
-            if (len > 0) {
-                len--;
-                buffer[len] = '\0';
-            }
-        } else if (key >= 32 && key <= 126 && len < (int) sizeof(buffer) - 1) {
-            buffer[len] = (char) key;
-            len++;
-            buffer[len] = '\0';
-        }
-    }
 }
 
 void fileio_open(Editor *editor, const char *filename)
@@ -115,14 +66,22 @@ void fileio_open(Editor *editor, const char *filename)
 int fileio_save(Editor *editor)
 {
     char *buf;
+    char *prompt_filename;
     char *temp_filename;
     int len;
     FILE *fp;
     size_t written;
     size_t filename_len;
 
-    if (editor->filename == NULL && fileio_prompt_filename(editor) != 0) {
-        return -1;
+    if (editor->filename == NULL) {
+        prompt_filename = prompt_read(editor, "Save as: %s");
+        if (prompt_filename == NULL) {
+            status_set(editor, "Save cancelled");
+            return -1;
+        }
+
+        free(editor->filename);
+        editor->filename = prompt_filename;
     }
 
     buf = editor_rows_to_string(editor, &len);
