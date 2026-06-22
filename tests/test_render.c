@@ -70,6 +70,15 @@ int main(void)
     assert(strstr(output, "modified") != NULL);
     assert(strstr(output, "Loaded 1 line") != NULL);
 
+    editor.cursor_x = 0;
+    editor.cursor_y = 0;
+    editor.row_offset = 0;
+    editor.col_offset = 0;
+    len = capture_render_output(&editor, output, (int) sizeof(output));
+    assert(len > 0);
+    assert(strstr(output, "1 hello") != NULL);
+    assert(strstr(output, "\x1b[1;3H") != NULL);
+
     editor_free(&editor);
     return 0;
 }

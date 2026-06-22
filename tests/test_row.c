@@ -13,10 +13,12 @@ int main(void)
     assert(row.render_size == 9);
     assert(strcmp(row.render, "a       b") == 0);
     assert(row_cursor_x_to_render_x(&row, 0) == 0);
+    assert(row_cursor_x_to_render_x(&row, -3) == 0);
     assert(row_cursor_x_to_render_x(&row, 1) == 1);
     assert(row_cursor_x_to_render_x(&row, 2) == 8);
     assert(row_cursor_x_to_render_x(&row, 3) == 9);
     assert(row_render_x_to_cursor_x(&row, 0) == 0);
+    assert(row_render_x_to_cursor_x(&row, -2) == 0);
     assert(row_render_x_to_cursor_x(&row, 8) == 2);
     row_free(&row);
 

@@ -94,6 +94,9 @@ int row_cursor_x_to_render_x(EditorRow *row, int cursor_x)
     int render_x = 0;
     int index;
 
+    if (cursor_x < 0) {
+        cursor_x = 0;
+    }
     if (cursor_x > row->size) {
         cursor_x = row->size;
     }
@@ -115,6 +118,10 @@ int row_render_x_to_cursor_x(EditorRow *row, int render_x)
 {
     int current_render_x = 0;
     int cursor_x;
+
+    if (render_x < 0) {
+        return 0;
+    }
 
     for (cursor_x = 0; cursor_x < row->size; cursor_x++) {
         if (row->chars[cursor_x] == '\t') {

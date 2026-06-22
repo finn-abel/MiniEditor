@@ -17,6 +17,10 @@ typedef struct Editor {
     int screen_needs_clear;
     int cursor_x;
     int cursor_y;
+    int render_x;
+    int row_offset;
+    int col_offset;
+    int line_number_width;
     int screen_rows;
     int screen_cols;
     int row_count;
@@ -39,5 +43,11 @@ void editor_init(Editor *editor);
  * This early implementation has no dynamic resources yet.
  */
 void editor_free(Editor *editor);
+
+/*
+ * Updates row and column scroll offsets so the cursor remains visible.
+ * The cursor's raw x position is converted to rendered x for tab-aware rows.
+ */
+void editor_scroll(Editor *editor);
 
 #endif

@@ -6,6 +6,10 @@
 
 static int input_max_cursor_x(Editor *editor)
 {
+    if (editor->cursor_y >= 0 && editor->cursor_y < editor->row_count) {
+        return editor->rows[editor->cursor_y].size;
+    }
+
     if (editor->screen_cols <= 0) {
         return 0;
     }
@@ -15,6 +19,10 @@ static int input_max_cursor_x(Editor *editor)
 
 static int input_max_cursor_y(Editor *editor)
 {
+    if (editor->row_count > 0) {
+        return editor->row_count - 1;
+    }
+
     if (editor->screen_rows <= 0) {
         return 0;
     }
@@ -50,6 +58,10 @@ static void input_move_cursor(Editor *editor, int key)
         default:
             break;
     }
+
+    if (editor->cursor_x > input_max_cursor_x(editor)) {
+        editor->cursor_x = input_max_cursor_x(editor);
+    }
 }
 
 // Dispatch one decoded key. At this stage, only quitting and basic navigation
@@ -69,10 +81,16 @@ void input_process_keypress(Editor *editor)
             editor->cursor_x = input_max_cursor_x(editor);
             break;
         case PAGE_UP:
-            editor->cursor_y = 0;
+            editor->cursor_y -= editor->screen_rows;
+            if (editor->cursor_y < 0) {
+                editor->cursor_y = 0;
+            }
             break;
         case PAGE_DOWN:
-            editor->cursor_y = input_max_cursor_y(editor);
+            editor->cursor_y += editor->screen_rows;
+            if (editor->cursor_y > input_max_cursor_y(editor)) {
+                editor->cursor_y = input_max_cursor_y(editor);
+            }
             break;
         case ARROW_LEFT:
         case ARROW_RIGHT:
@@ -82,5 +100,9 @@ void input_process_keypress(Editor *editor)
             break;
         default:
             break;
+    }
+
+    if (editor->cursor_x > input_max_cursor_x(editor)) {
+        editor->cursor_x = input_max_cursor_x(editor);
     }
 }

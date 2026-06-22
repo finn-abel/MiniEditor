@@ -9,13 +9,54 @@
 
 static void render_draw_file_row(Editor *editor, AppendBuffer *ab, int row_index)
 {
-    int len = editor->rows[row_index].render_size;
+    int len = editor->rows[row_index].render_size - editor->col_offset;
+    int text_cols = editor->screen_cols - editor->line_number_width - 1;
 
-    if (len > editor->screen_cols) {
-        len = editor->screen_cols;
+    if (text_cols < 0) {
+        text_cols = 0;
     }
 
-    abuf_append(ab, editor->rows[row_index].render, len);
+    if (len < 0) {
+        len = 0;
+    }
+    if (len > text_cols) {
+        len = text_cols;
+    }
+
+    if (len > 0) {
+        abuf_append(ab, &editor->rows[row_index].render[editor->col_offset], len);
+    }
+}
+
+static int render_line_number_width(Editor *editor)
+{
+    int rows = editor->row_count;
+    int width = 1;
+
+    while (rows >= 10) {
+        rows /= 10;
+        width++;
+    }
+
+    return width;
+}
+
+static void render_draw_gutter(Editor *editor, AppendBuffer *ab, int file_row)
+{
+    char gutter[32];
+    int len;
+
+    if (file_row < editor->row_count) {
+        len = snprintf(gutter, sizeof(gutter), "%*d ",
+                       editor->line_number_width, file_row + 1);
+    } else {
+        len = snprintf(gutter, sizeof(gutter), "%*s ",
+                       editor->line_number_width, "");
+    }
+
+    if (len > 0) {
+        abuf_append(ab, gutter, len);
+    }
 }
 
 // Draw each visible editor row, falling back to the placeholder tilde for empty
@@ -25,12 +66,17 @@ static void render_draw_rows(Editor *editor, AppendBuffer *ab)
     int y;
 
     for (y = 0; y < editor->screen_rows; y++) {
-        if (y < editor->row_count) {
-            render_draw_file_row(editor, ab, y);
+        int file_row = y + editor->row_offset;
+
+        render_draw_gutter(editor, ab, file_row);
+
+        if (file_row < editor->row_count) {
+            render_draw_file_row(editor, ab, file_row);
         } else if (editor->row_count == 0 && y == editor->screen_rows / 3) {
             const char *welcome = "MiniEditor";
             int welcome_len = (int) strlen(welcome);
-            int padding = (editor->screen_cols - welcome_len) / 2;
+            int text_cols = editor->screen_cols - editor->line_number_width - 1;
+            int padding = (text_cols - welcome_len) / 2;
 
             if (padding > 0) {
                 abuf_append(ab, "~", 1);
@@ -116,7 +162,12 @@ void render_refresh_screen(Editor *editor)
 {
     char cursor_position[32];
     int cursor_position_len;
+    int screen_cursor_x;
+    int screen_cursor_y;
     AppendBuffer ab = {NULL, 0};
+
+    editor->line_number_width = render_line_number_width(editor);
+    editor_scroll(editor);
 
     abuf_append(&ab, "\x1b[?25l", 6);
     abuf_append(&ab, "\x1b[H", 3);
@@ -131,9 +182,19 @@ void render_refresh_screen(Editor *editor)
     render_draw_status_bar(editor, &ab);
     render_draw_message_bar(editor, &ab);
 
+    screen_cursor_x = editor->render_x - editor->col_offset +
+                      editor->line_number_width + 1;
+    screen_cursor_y = editor->cursor_y - editor->row_offset;
+    if (screen_cursor_x < editor->line_number_width + 1) {
+        screen_cursor_x = editor->line_number_width + 1;
+    }
+    if (screen_cursor_y < 0) {
+        screen_cursor_y = 0;
+    }
+
     cursor_position_len = snprintf(cursor_position, sizeof(cursor_position),
-                                   "\x1b[%d;%dH", editor->cursor_y + 1,
-                                   editor->cursor_x + 1);
+                                   "\x1b[%d;%dH", screen_cursor_y + 1,
+                                   screen_cursor_x + 1);
     if (cursor_position_len > 0 &&
         cursor_position_len < (int) sizeof(cursor_position)) {
         abuf_append(&ab, cursor_position, cursor_position_len);
