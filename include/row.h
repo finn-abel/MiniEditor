@@ -48,4 +48,22 @@ int row_cursor_x_to_render_x(EditorRow *row, int cursor_x);
  */
 int row_render_x_to_cursor_x(EditorRow *row, int render_x);
 
+/*
+ * Inserts one character into a row at the requested raw position.
+ * Positions outside the row are clamped to the row bounds.
+ */
+void row_insert_char(EditorRow *row, int at, int c);
+
+/*
+ * Appends a byte range to the end of a row.
+ * The rendered form is rebuilt after the raw text changes.
+ */
+void row_append_string(EditorRow *row, const char *s, size_t len);
+
+/*
+ * Deletes one character from a row at the requested raw position.
+ * Invalid positions are ignored and leave the row unchanged.
+ */
+void row_delete_char(EditorRow *row, int at);
+
 #endif

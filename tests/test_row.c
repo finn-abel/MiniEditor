@@ -22,5 +22,23 @@ int main(void)
     assert(row_render_x_to_cursor_x(&row, 8) == 2);
     row_free(&row);
 
+    row_init(&row, 0, "helo", 4);
+    row_insert_char(&row, 2, 'l');
+    assert(strcmp(row.chars, "hello") == 0);
+    assert(strcmp(row.render, "hello") == 0);
+
+    row_insert_char(&row, -10, '>');
+    assert(strcmp(row.chars, ">hello") == 0);
+
+    row_append_string(&row, "!", 1);
+    assert(strcmp(row.chars, ">hello!") == 0);
+
+    row_delete_char(&row, 0);
+    assert(strcmp(row.chars, "hello!") == 0);
+
+    row_delete_char(&row, row.size - 1);
+    assert(strcmp(row.chars, "hello") == 0);
+    row_free(&row);
+
     return 0;
 }

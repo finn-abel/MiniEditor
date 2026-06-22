@@ -137,3 +137,60 @@ int row_render_x_to_cursor_x(EditorRow *row, int render_x)
 
     return cursor_x;
 }
+
+// Insert by growing the raw buffer, opening a one-byte gap, then refreshing the
+// rendered row so tabs and future highlighting stay in sync.
+void row_insert_char(EditorRow *row, int at, int c)
+{
+    char *chars;
+
+    if (at < 0) {
+        at = 0;
+    }
+    if (at > row->size) {
+        at = row->size;
+    }
+
+    chars = realloc(row->chars, (size_t) row->size + 2);
+    if (chars == NULL) {
+        return;
+    }
+
+    row->chars = chars;
+    memmove(&row->chars[at + 1], &row->chars[at],
+            (size_t) (row->size - at + 1));
+    row->chars[at] = (char) c;
+    row->size++;
+    row_update_render(row);
+}
+
+// Append text to the raw row. This is mainly used when joining two rows during
+// Backspace/Delete handling.
+void row_append_string(EditorRow *row, const char *s, size_t len)
+{
+    char *chars = realloc(row->chars, (size_t) row->size + len + 1);
+
+    if (chars == NULL) {
+        return;
+    }
+
+    row->chars = chars;
+    memcpy(&row->chars[row->size], s, len);
+    row->size += (int) len;
+    row->chars[row->size] = '\0';
+    row_update_render(row);
+}
+
+// Delete a raw character and refresh the rendered row. Deleting from an empty
+// row or outside the row bounds is a no-op.
+void row_delete_char(EditorRow *row, int at)
+{
+    if (at < 0 || at >= row->size) {
+        return;
+    }
+
+    memmove(&row->chars[at], &row->chars[at + 1],
+            (size_t) (row->size - at));
+    row->size--;
+    row_update_render(row);
+}

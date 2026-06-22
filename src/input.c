@@ -1,5 +1,6 @@
 #include "input.h"
 
+#include "buffer.h"
 #include "terminal.h"
 
 #define CTRL_KEY(key) ((key) & 0x1f)
@@ -38,11 +39,17 @@ static void input_move_cursor(Editor *editor, int key)
         case ARROW_LEFT:
             if (editor->cursor_x > 0) {
                 editor->cursor_x--;
+            } else if (editor->cursor_y > 0) {
+                editor->cursor_y--;
+                editor->cursor_x = input_max_cursor_x(editor);
             }
             break;
         case ARROW_RIGHT:
             if (editor->cursor_x < input_max_cursor_x(editor)) {
                 editor->cursor_x++;
+            } else if (editor->cursor_y < input_max_cursor_y(editor)) {
+                editor->cursor_y++;
+                editor->cursor_x = 0;
             }
             break;
         case ARROW_UP:
@@ -64,6 +71,22 @@ static void input_move_cursor(Editor *editor, int key)
     }
 }
 
+static void input_delete_forward(Editor *editor)
+{
+    if (editor->cursor_y >= editor->row_count) {
+        return;
+    }
+
+    if (editor->cursor_x < input_max_cursor_x(editor)) {
+        editor->cursor_x++;
+        editor_delete_char(editor);
+    } else if (editor->cursor_y < input_max_cursor_y(editor)) {
+        editor->cursor_y++;
+        editor->cursor_x = 0;
+        editor_delete_char(editor);
+    }
+}
+
 // Dispatch one decoded key. At this stage, only quitting and basic navigation
 // mutate editor state.
 void input_process_keypress(Editor *editor)
@@ -73,6 +96,17 @@ void input_process_keypress(Editor *editor)
     switch (key) {
         case CTRL_KEY('q'):
             editor->should_quit = 1;
+            break;
+        case '\r':
+        case '\n':
+            editor_insert_newline(editor);
+            break;
+        case 127:
+        case CTRL_KEY('h'):
+            editor_delete_char(editor);
+            break;
+        case DELETE_KEY:
+            input_delete_forward(editor);
             break;
         case HOME_KEY:
             editor->cursor_x = 0;
@@ -99,6 +133,9 @@ void input_process_keypress(Editor *editor)
             input_move_cursor(editor, key);
             break;
         default:
+            if (key >= 32 && key <= 126) {
+                editor_insert_char(editor, key);
+            }
             break;
     }
 

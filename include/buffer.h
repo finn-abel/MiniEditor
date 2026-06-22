@@ -17,4 +17,22 @@ void editor_insert_row(Editor *editor, int at, const char *s, size_t len);
  */
 void editor_delete_row(Editor *editor, int at);
 
+/*
+ * Inserts one printable character at the editor cursor.
+ * Missing rows are created as needed and the cursor moves right.
+ */
+void editor_insert_char(Editor *editor, int c);
+
+/*
+ * Inserts a newline at the cursor, splitting the current row when needed.
+ * The cursor moves to the beginning of the newly created row.
+ */
+void editor_insert_newline(Editor *editor);
+
+/*
+ * Deletes the character before the cursor.
+ * At the beginning of a row, it joins that row into the previous row.
+ */
+void editor_delete_char(Editor *editor);
+
 #endif

@@ -42,5 +42,62 @@ int main(void)
     assert(editor.dirty == 4);
 
     editor_free(&editor);
+
+    editor_init(&editor);
+    editor_insert_char(&editor, 'h');
+    editor_insert_char(&editor, 'i');
+    assert(editor.row_count == 1);
+    assert(editor.cursor_x == 2);
+    assert(editor.cursor_y == 0);
+    assert(editor.dirty == 2);
+    assert(strcmp(editor.rows[0].chars, "hi") == 0);
+
+    editor.cursor_x = 1;
+    editor_insert_char(&editor, '!');
+    assert(strcmp(editor.rows[0].chars, "h!i") == 0);
+    assert(editor.cursor_x == 2);
+    assert(editor.dirty == 3);
+
+    editor_insert_newline(&editor);
+    assert(editor.row_count == 2);
+    assert(editor.cursor_x == 0);
+    assert(editor.cursor_y == 1);
+    assert(strcmp(editor.rows[0].chars, "h!") == 0);
+    assert(strcmp(editor.rows[1].chars, "i") == 0);
+
+    editor_insert_char(&editor, 'w');
+    editor_insert_char(&editor, 'o');
+    assert(strcmp(editor.rows[1].chars, "woi") == 0);
+
+    editor.cursor_x = 1;
+    editor_delete_char(&editor);
+    assert(strcmp(editor.rows[1].chars, "oi") == 0);
+    assert(editor.cursor_x == 0);
+
+    editor_delete_char(&editor);
+    assert(editor.row_count == 1);
+    assert(editor.cursor_y == 0);
+    assert(editor.cursor_x == 2);
+    assert(strcmp(editor.rows[0].chars, "h!oi") == 0);
+
+    editor.cursor_x = 2;
+    editor.cursor_y = 0;
+    editor.cursor_x++;
+    editor_delete_char(&editor);
+    assert(strcmp(editor.rows[0].chars, "h!i") == 0);
+
+    editor.cursor_x = 0;
+    editor_insert_newline(&editor);
+    assert(editor.row_count == 2);
+    assert(strcmp(editor.rows[0].chars, "") == 0);
+    assert(strcmp(editor.rows[1].chars, "h!i") == 0);
+
+    editor.cursor_y = 1;
+    editor.cursor_x = editor.rows[1].size;
+    editor_insert_newline(&editor);
+    assert(editor.row_count == 3);
+    assert(strcmp(editor.rows[2].chars, "") == 0);
+
+    editor_free(&editor);
     return 0;
 }

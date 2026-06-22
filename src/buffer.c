@@ -60,3 +60,88 @@ void editor_delete_row(Editor *editor, int at)
     buffer_update_row_indexes(editor, at);
     editor->dirty++;
 }
+
+void editor_insert_char(Editor *editor, int c)
+{
+    if (editor->cursor_y == editor->row_count) {
+        int dirty_before = editor->dirty;
+
+        editor_insert_row(editor, editor->row_count, "", 0);
+        if (editor->cursor_y != editor->row_count - 1) {
+            return;
+        }
+        editor->dirty = dirty_before;
+    }
+
+    if (editor->cursor_y < 0 || editor->cursor_y >= editor->row_count) {
+        return;
+    }
+
+    row_insert_char(&editor->rows[editor->cursor_y], editor->cursor_x, c);
+    editor->cursor_x++;
+    editor->dirty++;
+}
+
+void editor_insert_newline(Editor *editor)
+{
+    EditorRow *row;
+
+    if (editor->cursor_y < 0) {
+        return;
+    }
+
+    if (editor->cursor_y >= editor->row_count) {
+        editor_insert_row(editor, editor->row_count, "", 0);
+        editor->cursor_y = editor->row_count - 1;
+        editor->cursor_x = 0;
+        return;
+    }
+
+    row = &editor->rows[editor->cursor_y];
+    if (editor->cursor_x <= 0) {
+        editor_insert_row(editor, editor->cursor_y, "", 0);
+    } else if (editor->cursor_x >= row->size) {
+        editor_insert_row(editor, editor->cursor_y + 1, "", 0);
+        editor->cursor_y++;
+    } else {
+        editor_insert_row(editor, editor->cursor_y + 1,
+                          &row->chars[editor->cursor_x],
+                          (size_t) (row->size - editor->cursor_x));
+        row = &editor->rows[editor->cursor_y];
+        row->size = editor->cursor_x;
+        row->chars[row->size] = '\0';
+        row_update_render(row);
+        editor->cursor_y++;
+    }
+
+    editor->cursor_x = 0;
+}
+
+void editor_delete_char(Editor *editor)
+{
+    EditorRow *row;
+    int previous_size;
+
+    if (editor->cursor_y < 0 || editor->cursor_y >= editor->row_count) {
+        return;
+    }
+
+    if (editor->cursor_x == 0 && editor->cursor_y == 0) {
+        return;
+    }
+
+    row = &editor->rows[editor->cursor_y];
+    if (editor->cursor_x > 0) {
+        row_delete_char(row, editor->cursor_x - 1);
+        editor->cursor_x--;
+        editor->dirty++;
+        return;
+    }
+
+    previous_size = editor->rows[editor->cursor_y - 1].size;
+    row_append_string(&editor->rows[editor->cursor_y - 1], row->chars,
+                      (size_t) row->size);
+    editor_delete_row(editor, editor->cursor_y);
+    editor->cursor_y--;
+    editor->cursor_x = previous_size;
+}
