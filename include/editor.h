@@ -1,12 +1,20 @@
 #ifndef EDITOR_H
 #define EDITOR_H
 
+#include <termios.h>
+
 /*
  * Stores the shared state for one MiniEditor session.
- * The full editor state will be added as the implementation grows.
+ * This includes terminal state that must be restored before exit.
  */
 typedef struct Editor {
     int initialized;
+    int raw_mode_enabled;
+    int cursor_x;
+    int cursor_y;
+    int screen_rows;
+    int screen_cols;
+    struct termios original_termios;
 } Editor;
 
 /*

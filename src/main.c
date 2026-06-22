@@ -1,13 +1,56 @@
 #include <stdio.h>
 
 #include "editor.h"
+#include "render.h"
+#include "terminal.h"
 
+#define CTRL_KEY(key) ((key) & 0x1f)
+
+// Keep startup simple: initialize state, enter raw mode, render, then process
+// one key at a time until Ctrl-Q requests a normal shutdown.
 int main(void)
 {
     Editor editor;
 
     editor_init(&editor);
-    puts("MiniEditor starting");
+
+    if (terminal_enable_raw_mode(&editor) != 0) {
+        perror("terminal_enable_raw_mode");
+        editor_free(&editor);
+        return 1;
+    }
+
+    if (terminal_get_window_size(&editor.screen_rows, &editor.screen_cols) != 0) {
+        terminal_disable_raw_mode(&editor);
+        editor_free(&editor);
+        perror("terminal_get_window_size");
+        return 1;
+    }
+
+    // The bottom two rows are reserved for the future status and message bars,
+    // so render.c only draws editor rows above that area.
+    if (editor.screen_rows > 2) {
+        editor.screen_rows -= 2;
+    }
+
+    while (1) {
+        render_refresh_screen(&editor);
+
+        int key = terminal_read_key();
+
+        if (key == CTRL_KEY('q')) {
+            break;
+        }
+
+        if (key == -1) {
+            terminal_disable_raw_mode(&editor);
+            editor_free(&editor);
+            perror("terminal_read_key");
+            return 1;
+        }
+    }
+
+    terminal_disable_raw_mode(&editor);
     editor_free(&editor);
 
     return 0;
