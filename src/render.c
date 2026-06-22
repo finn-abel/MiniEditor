@@ -50,7 +50,11 @@ void render_refresh_screen(Editor *editor)
 
     abuf_append(&ab, "\x1b[?25l", 6);
     abuf_append(&ab, "\x1b[H", 3);
-    abuf_append(&ab, "\x1b[2J", 4);
+
+    if (editor->screen_needs_clear) {
+        abuf_append(&ab, "\x1b[2J", 4);
+        editor->screen_needs_clear = 0;
+    }
 
     render_draw_rows(editor, &ab);
 

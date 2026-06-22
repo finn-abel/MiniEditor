@@ -6,6 +6,8 @@ void editor_init(Editor *editor)
 {
     editor->initialized = 1;
     editor->raw_mode_enabled = 0;
+    editor->should_quit = 0;
+    editor->screen_needs_clear = 1;
     editor->cursor_x = 0;
     editor->cursor_y = 0;
     editor->screen_rows = 22;
@@ -18,4 +20,6 @@ void editor_free(Editor *editor)
 {
     editor->initialized = 0;
     editor->raw_mode_enabled = 0;
+    editor->should_quit = 0;
+    editor->screen_needs_clear = 0;
 }

@@ -5,10 +5,10 @@ INCLUDES = -Iinclude
 TARGET = MiniEditor
 
 # Add normal project source files here.
-SRC = src/main.c src/editor.c src/terminal.c src/abuf.c src/render.c
+SRC = src/main.c src/editor.c src/terminal.c src/abuf.c src/render.c src/input.c
 
 # Add test source files here.
-TEST_SRC = tests/test_editor.c tests/test_abuf.c tests/test_render.c tests/test_terminal.c
+TEST_SRC = tests/test_editor.c tests/test_abuf.c tests/test_render.c tests/test_terminal.c tests/test_input.c
 
 OBJ = $(SRC:.c=.o)
 

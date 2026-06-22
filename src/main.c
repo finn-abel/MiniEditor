@@ -1,10 +1,9 @@
 #include <stdio.h>
 
 #include "editor.h"
+#include "input.h"
 #include "render.h"
 #include "terminal.h"
-
-#define CTRL_KEY(key) ((key) & 0x1f)
 
 // Keep startup simple: initialize state, enter raw mode, render, then process
 // one key at a time until Ctrl-Q requests a normal shutdown.
@@ -33,23 +32,12 @@ int main(void)
         editor.screen_rows -= 2;
     }
 
-    while (1) {
+    while (!editor.should_quit) {
         render_refresh_screen(&editor);
-
-        int key = terminal_read_key();
-
-        if (key == CTRL_KEY('q')) {
-            break;
-        }
-
-        if (key == -1) {
-            terminal_disable_raw_mode(&editor);
-            editor_free(&editor);
-            perror("terminal_read_key");
-            return 1;
-        }
+        input_process_keypress(&editor);
     }
 
+    terminal_clear_screen();
     terminal_disable_raw_mode(&editor);
     editor_free(&editor);
 

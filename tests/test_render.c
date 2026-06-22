@@ -52,6 +52,11 @@ int main(void)
     assert(strstr(output, "\x1b[4;3H") != NULL);
     assert(strstr(output, "\x1b[?25h") != NULL);
 
+    len = capture_render_output(&editor, output, (int) sizeof(output));
+    assert(len > 0);
+    assert(strstr(output, "\x1b[H") != NULL);
+    assert(strstr(output, "\x1b[2J") == NULL);
+
     editor_free(&editor);
     return 0;
 }

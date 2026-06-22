@@ -10,6 +10,8 @@
 typedef struct Editor {
     int initialized;
     int raw_mode_enabled;
+    int should_quit;
+    int screen_needs_clear;
     int cursor_x;
     int cursor_y;
     int screen_rows;
