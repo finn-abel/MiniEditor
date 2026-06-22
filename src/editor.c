@@ -16,6 +16,9 @@ void editor_init(Editor *editor)
     editor->screen_cols = 80;
     editor->row_count = 0;
     editor->dirty = 0;
+    editor->filename = NULL;
+    editor->status_message[0] = '\0';
+    editor->status_message_time = 0;
     editor->rows = NULL;
 }
 
@@ -28,6 +31,7 @@ void editor_free(Editor *editor)
         row_free(&editor->rows[index]);
     }
     free(editor->rows);
+    free(editor->filename);
 
     editor->initialized = 0;
     editor->raw_mode_enabled = 0;
@@ -35,5 +39,8 @@ void editor_free(Editor *editor)
     editor->screen_needs_clear = 0;
     editor->row_count = 0;
     editor->dirty = 0;
+    editor->filename = NULL;
+    editor->status_message[0] = '\0';
+    editor->status_message_time = 0;
     editor->rows = NULL;
 }

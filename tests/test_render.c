@@ -2,8 +2,10 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "buffer.h"
 #include "editor.h"
 #include "render.h"
+#include "status.h"
 
 static int capture_render_output(Editor *editor, char *buffer, int buffer_size)
 {
@@ -38,7 +40,7 @@ int main(void)
 
     editor_init(&editor);
     editor.screen_rows = 5;
-    editor.screen_cols = 20;
+    editor.screen_cols = 80;
     editor.cursor_x = 2;
     editor.cursor_y = 3;
 
@@ -51,11 +53,22 @@ int main(void)
     assert(strstr(output, "MiniEditor") != NULL);
     assert(strstr(output, "\x1b[4;3H") != NULL);
     assert(strstr(output, "\x1b[?25h") != NULL);
+    assert(strstr(output, "[No Name] - 0 lines") != NULL);
+    assert(strstr(output, "clean") != NULL);
+    assert(strstr(output, "HELP: Ctrl-S = save | Ctrl-Q = quit | Ctrl-F = search") != NULL);
 
     len = capture_render_output(&editor, output, (int) sizeof(output));
     assert(len > 0);
     assert(strstr(output, "\x1b[H") != NULL);
     assert(strstr(output, "\x1b[2J") == NULL);
+
+    editor_insert_row(&editor, 0, "hello", 5);
+    status_set(&editor, "Loaded %d line", editor.row_count);
+    len = capture_render_output(&editor, output, (int) sizeof(output));
+    assert(len > 0);
+    assert(strstr(output, "hello") != NULL);
+    assert(strstr(output, "modified") != NULL);
+    assert(strstr(output, "Loaded 1 line") != NULL);
 
     editor_free(&editor);
     return 0;

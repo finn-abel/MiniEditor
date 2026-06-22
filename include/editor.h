@@ -1,6 +1,7 @@
 #ifndef EDITOR_H
 #define EDITOR_H
 
+#include <time.h>
 #include <termios.h>
 
 #include "row.h"
@@ -20,6 +21,9 @@ typedef struct Editor {
     int screen_cols;
     int row_count;
     int dirty;
+    char *filename;
+    char status_message[80];
+    time_t status_message_time;
     EditorRow *rows;
     struct termios original_termios;
 } Editor;

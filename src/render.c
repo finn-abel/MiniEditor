@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 static void render_draw_file_row(Editor *editor, AppendBuffer *ab, int row_index)
@@ -53,6 +54,62 @@ static void render_draw_rows(Editor *editor, AppendBuffer *ab)
     }
 }
 
+static void render_draw_status_bar(Editor *editor, AppendBuffer *ab)
+{
+    char status[120];
+    const char *dirty_state = editor->dirty ? "modified" : "clean";
+    int len;
+    int line_info_len;
+    int spaces;
+
+    len = snprintf(status, sizeof(status), "%s - %d lines",
+                   editor->filename != NULL ? editor->filename : "[No Name]",
+                   editor->row_count);
+    if (len < 0) {
+        len = 0;
+    }
+    if (len > editor->screen_cols) {
+        len = editor->screen_cols;
+    }
+
+    abuf_append(ab, "\x1b[7m", 4);
+    abuf_append(ab, status, len);
+
+    line_info_len = (int) strlen(dirty_state);
+    spaces = editor->screen_cols - len - line_info_len;
+    while (spaces > 0) {
+        abuf_append(ab, " ", 1);
+        spaces--;
+    }
+
+    if (line_info_len <= editor->screen_cols - len) {
+        abuf_append(ab, dirty_state, line_info_len);
+    }
+
+    abuf_append(ab, "\x1b[m", 3);
+    abuf_append(ab, "\r\n", 2);
+}
+
+static void render_draw_message_bar(Editor *editor, AppendBuffer *ab)
+{
+    const char *message = "HELP: Ctrl-S = save | Ctrl-Q = quit | Ctrl-F = search";
+    int message_len;
+
+    abuf_append(ab, "\x1b[K", 3);
+
+    if (editor->status_message[0] != '\0' &&
+        time(NULL) - editor->status_message_time < 5) {
+        message = editor->status_message;
+    }
+
+    message_len = (int) strlen(message);
+    if (message_len > editor->screen_cols) {
+        message_len = editor->screen_cols;
+    }
+
+    abuf_append(ab, message, message_len);
+}
+
 // Build a whole terminal frame in memory first, then write it once. This keeps
 // redraw behavior predictable as more UI elements are added.
 void render_refresh_screen(Editor *editor)
@@ -70,6 +127,9 @@ void render_refresh_screen(Editor *editor)
     }
 
     render_draw_rows(editor, &ab);
+    abuf_append(&ab, "\r\n", 2);
+    render_draw_status_bar(editor, &ab);
+    render_draw_message_bar(editor, &ab);
 
     cursor_position_len = snprintf(cursor_position, sizeof(cursor_position),
                                    "\x1b[%d;%dH", editor->cursor_y + 1,

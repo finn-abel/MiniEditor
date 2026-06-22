@@ -1,19 +1,22 @@
 #include <stdio.h>
 
-#include "buffer.h"
 #include "editor.h"
+#include "fileio.h"
 #include "input.h"
 #include "render.h"
 #include "terminal.h"
 
 // Keep startup simple: initialize state, enter raw mode, render, then process
 // one key at a time until Ctrl-Q requests a normal shutdown.
-int main(void)
+int main(int argc, char **argv)
 {
     Editor editor;
 
     editor_init(&editor);
-    editor_insert_row(&editor, 0, "int main(void) {", 16);
+
+    if (argc >= 2) {
+        fileio_open(&editor, argv[1]);
+    }
 
     if (terminal_enable_raw_mode(&editor) != 0) {
         perror("terminal_enable_raw_mode");
