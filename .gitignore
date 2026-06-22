@@ -53,3 +53,13 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+MiniEditor
+*.o
+*.dSYM/
+build/
+.DS_Store
+
+# agent files
+AGENT.md
+CLAUDE.md 
