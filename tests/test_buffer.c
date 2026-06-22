@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "buffer.h"
@@ -7,6 +8,8 @@
 int main(void)
 {
     Editor editor;
+    char *serialized;
+    int serialized_len;
 
     editor_init(&editor);
 
@@ -97,6 +100,12 @@ int main(void)
     editor_insert_newline(&editor);
     assert(editor.row_count == 3);
     assert(strcmp(editor.rows[2].chars, "") == 0);
+
+    serialized = editor_rows_to_string(&editor, &serialized_len);
+    assert(serialized != NULL);
+    assert(serialized_len == 5);
+    assert(strcmp(serialized, "\nh!i\n") == 0);
+    free(serialized);
 
     editor_free(&editor);
     return 0;

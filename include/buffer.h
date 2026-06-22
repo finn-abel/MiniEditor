@@ -35,4 +35,10 @@ void editor_insert_newline(Editor *editor);
  */
 void editor_delete_char(Editor *editor);
 
+/*
+ * Serializes all editor rows into one heap buffer.
+ * Rows are separated with newline bytes and the caller frees the result.
+ */
+char *editor_rows_to_string(Editor *editor, int *buf_len);
+
 #endif

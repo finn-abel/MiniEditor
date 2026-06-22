@@ -145,3 +145,39 @@ void editor_delete_char(Editor *editor)
     editor->cursor_y--;
     editor->cursor_x = previous_size;
 }
+
+char *editor_rows_to_string(Editor *editor, int *buf_len)
+{
+    char *buf;
+    char *p;
+    int total_len = 0;
+    int index;
+
+    for (index = 0; index < editor->row_count; index++) {
+        total_len += editor->rows[index].size;
+        if (index < editor->row_count - 1) {
+            total_len++;
+        }
+    }
+
+    buf = malloc((size_t) total_len + 1);
+    if (buf == NULL) {
+        *buf_len = 0;
+        return NULL;
+    }
+
+    p = buf;
+    for (index = 0; index < editor->row_count; index++) {
+        memcpy(p, editor->rows[index].chars, (size_t) editor->rows[index].size);
+        p += editor->rows[index].size;
+
+        if (index < editor->row_count - 1) {
+            *p = '\n';
+            p++;
+        }
+    }
+
+    *p = '\0';
+    *buf_len = total_len;
+    return buf;
+}

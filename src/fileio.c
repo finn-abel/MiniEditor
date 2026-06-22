@@ -3,7 +3,9 @@
 #include "fileio.h"
 
 #include "buffer.h"
+#include "render.h"
 #include "status.h"
+#include "terminal.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,6 +24,54 @@ static char *fileio_strdup(const char *s)
     return copy;
 }
 
+static int fileio_prompt_filename(Editor *editor)
+{
+    char buffer[256];
+    int len = 0;
+
+    buffer[0] = '\0';
+
+    while (1) {
+        int key;
+
+        status_set(editor, "Save as: %s", buffer);
+        render_refresh_screen(editor);
+
+        key = terminal_read_key();
+        if (key == '\r' || key == '\n') {
+            if (len == 0) {
+                status_set(editor, "Save cancelled");
+                return -1;
+            }
+
+            free(editor->filename);
+            editor->filename = fileio_strdup(buffer);
+            if (editor->filename == NULL) {
+                status_set(editor, "Could not copy filename");
+                return -1;
+            }
+
+            return 0;
+        }
+
+        if (key == '\x1b') {
+            status_set(editor, "Save cancelled");
+            return -1;
+        }
+
+        if (key == 127 || key == ('h' & 0x1f)) {
+            if (len > 0) {
+                len--;
+                buffer[len] = '\0';
+            }
+        } else if (key >= 32 && key <= 126 && len < (int) sizeof(buffer) - 1) {
+            buffer[len] = (char) key;
+            len++;
+            buffer[len] = '\0';
+        }
+    }
+}
+
 void fileio_open(Editor *editor, const char *filename)
 {
     FILE *fp;
@@ -36,15 +86,15 @@ void fileio_open(Editor *editor, const char *filename)
         return;
     }
 
-    fp = fopen(filename, "r");
-    if (fp == NULL) {
-        free(filename_copy);
-        status_set(editor, "Could not open %s", filename);
-        return;
-    }
-
     free(editor->filename);
     editor->filename = filename_copy;
+
+    fp = fopen(filename, "r");
+    if (fp == NULL) {
+        status_set(editor, "New file: %s", filename);
+        editor->dirty = 0;
+        return;
+    }
 
     // getline keeps blank lines and the final unterminated line, so loading
     // preserves the file shape before stripping newline characters.
@@ -60,4 +110,65 @@ void fileio_open(Editor *editor, const char *filename)
     free(line);
     fclose(fp);
     editor->dirty = 0;
+}
+
+int fileio_save(Editor *editor)
+{
+    char *buf;
+    char *temp_filename;
+    int len;
+    FILE *fp;
+    size_t written;
+    size_t filename_len;
+
+    if (editor->filename == NULL && fileio_prompt_filename(editor) != 0) {
+        return -1;
+    }
+
+    buf = editor_rows_to_string(editor, &len);
+    if (buf == NULL) {
+        status_set(editor, "Could not serialize buffer");
+        return -1;
+    }
+
+    filename_len = strlen(editor->filename);
+    temp_filename = malloc(filename_len + 5);
+    if (temp_filename == NULL) {
+        free(buf);
+        status_set(editor, "Could not allocate save path");
+        return -1;
+    }
+    memcpy(temp_filename, editor->filename, filename_len);
+    memcpy(&temp_filename[filename_len], ".tmp", 5);
+
+    fp = fopen(temp_filename, "wb");
+    if (fp == NULL) {
+        free(temp_filename);
+        free(buf);
+        status_set(editor, "Could not write %s", editor->filename);
+        return -1;
+    }
+
+    written = fwrite(buf, 1, (size_t) len, fp);
+    if (fclose(fp) != 0 || written != (size_t) len) {
+        remove(temp_filename);
+        free(temp_filename);
+        free(buf);
+        status_set(editor, "Could not write %s", editor->filename);
+        return -1;
+    }
+
+    if (rename(temp_filename, editor->filename) != 0) {
+        remove(temp_filename);
+        free(temp_filename);
+        free(buf);
+        status_set(editor, "Could not save %s", editor->filename);
+        return -1;
+    }
+
+    free(temp_filename);
+    free(buf);
+    editor->dirty = 0;
+    status_set(editor, "%d bytes written to disk", len);
+    return 0;
 }

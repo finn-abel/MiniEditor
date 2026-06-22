@@ -1,6 +1,8 @@
 #include "input.h"
 
 #include "buffer.h"
+#include "fileio.h"
+#include "status.h"
 #include "terminal.h"
 
 #define CTRL_KEY(key) ((key) & 0x1f)
@@ -92,10 +94,24 @@ static void input_delete_forward(Editor *editor)
 void input_process_keypress(Editor *editor)
 {
     int key = terminal_read_key();
+    int reset_quit_times = 1;
 
     switch (key) {
         case CTRL_KEY('q'):
+            if (editor->dirty && editor->quit_times > 1) {
+                status_set(editor,
+                           "WARNING: file has unsaved changes. Press Ctrl-Q %d more times to quit.",
+                           editor->quit_times - 1);
+                editor->quit_times--;
+                reset_quit_times = 0;
+                break;
+            }
+
             editor->should_quit = 1;
+            reset_quit_times = 0;
+            break;
+        case CTRL_KEY('s'):
+            fileio_save(editor);
             break;
         case '\r':
         case '\n':
@@ -141,5 +157,9 @@ void input_process_keypress(Editor *editor)
 
     if (editor->cursor_x > input_max_cursor_x(editor)) {
         editor->cursor_x = input_max_cursor_x(editor);
+    }
+
+    if (reset_quit_times) {
+        editor->quit_times = MiniEditor_QUIT_TIMES;
     }
 }

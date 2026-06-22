@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "editor.h"
@@ -56,6 +57,24 @@ int main(void)
     assert(editor.cursor_x == 3);
     assert(editor.cursor_y == 2);
 
+    process_key_bytes(&editor, "\x11", 1);
+    assert(editor.should_quit == 1);
+
+    editor_free(&editor);
+
+    editor_init(&editor);
+    editor.dirty = 1;
+
+    process_key_bytes(&editor, "\x11", 1);
+    assert(editor.should_quit == 0);
+    assert(editor.quit_times == 2);
+    assert(strstr(editor.status_message, "2 more times") != NULL);
+
+    process_key_bytes(&editor, "x", 1);
+    assert(editor.quit_times == MiniEditor_QUIT_TIMES);
+
+    process_key_bytes(&editor, "\x11", 1);
+    process_key_bytes(&editor, "\x11", 1);
     process_key_bytes(&editor, "\x11", 1);
     assert(editor.should_quit == 1);
 

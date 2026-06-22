@@ -6,6 +6,8 @@
 
 #include "row.h"
 
+#define MiniEditor_QUIT_TIMES 3
+
 /*
  * Stores the shared state for one MiniEditor session.
  * This includes terminal state, cursor position, and owned text rows.
@@ -14,6 +16,7 @@ typedef struct Editor {
     int initialized;
     int raw_mode_enabled;
     int should_quit;
+    int quit_times;
     int screen_needs_clear;
     int cursor_x;
     int cursor_y;

@@ -9,4 +9,10 @@
  */
 void fileio_open(Editor *editor, const char *filename);
 
+/*
+ * Saves the current buffer to disk.
+ * Returns 0 on success and -1 if the save is cancelled or fails.
+ */
+int fileio_save(Editor *editor);
+
 #endif
