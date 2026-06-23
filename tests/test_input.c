@@ -2,6 +2,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "buffer.h"
 #include "editor.h"
 #include "input.h"
 
@@ -34,31 +35,47 @@ int main(void)
     editor.screen_cols = 4;
 
     process_key_bytes(&editor, "\x1b[C", 3);
-    assert(editor.cursor_x == 1);
+    assert(editor.cursor_x == 0);
     assert(editor.cursor_y == 0);
 
     process_key_bytes(&editor, "\x1b[B", 3);
-    assert(editor.cursor_x == 1);
-    assert(editor.cursor_y == 1);
+    assert(editor.cursor_x == 0);
+    assert(editor.cursor_y == 0);
 
     process_key_bytes(&editor, "\x1b[H", 3);
     assert(editor.cursor_x == 0);
-    assert(editor.cursor_y == 1);
+    assert(editor.cursor_y == 0);
 
     process_key_bytes(&editor, "\x1b[F", 3);
-    assert(editor.cursor_x == 3);
-    assert(editor.cursor_y == 1);
+    assert(editor.cursor_x == 0);
+    assert(editor.cursor_y == 0);
 
     process_key_bytes(&editor, "\x1b[5~", 4);
-    assert(editor.cursor_x == 3);
+    assert(editor.cursor_x == 0);
     assert(editor.cursor_y == 0);
 
     process_key_bytes(&editor, "\x1b[6~", 4);
-    assert(editor.cursor_x == 3);
-    assert(editor.cursor_y == 2);
+    assert(editor.cursor_x == 0);
+    assert(editor.cursor_y == 0);
 
     process_key_bytes(&editor, "\x11", 1);
     assert(editor.should_quit == 1);
+
+    editor_free(&editor);
+
+    editor_init(&editor);
+    editor_insert_row(&editor, 0, "long", 4);
+    editor_insert_row(&editor, 1, "x", 1);
+    editor.cursor_x = 4;
+    editor.cursor_y = 0;
+
+    process_key_bytes(&editor, "\x1b[B", 3);
+    assert(editor.cursor_y == 1);
+    assert(editor.cursor_x == 1);
+
+    process_key_bytes(&editor, "\x1b[C", 3);
+    assert(editor.cursor_y == 1);
+    assert(editor.cursor_x == 1);
 
     editor_free(&editor);
 

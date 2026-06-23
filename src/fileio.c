@@ -7,9 +7,11 @@
 #include "status.h"
 #include "syntax.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 static char *fileio_strdup(const char *s)
 {
@@ -31,6 +33,7 @@ void fileio_open(Editor *editor, const char *filename)
     size_t line_capacity = 0;
     ssize_t line_len;
     char *filename_copy;
+    struct stat file_stat;
 
     filename_copy = fileio_strdup(filename);
     if (filename_copy == NULL) {
@@ -41,10 +44,31 @@ void fileio_open(Editor *editor, const char *filename)
     free(editor->filename);
     editor->filename = filename_copy;
 
+    if (stat(filename, &file_stat) == -1) {
+        if (errno == ENOENT) {
+            syntax_select(editor);
+            status_set(editor, "New file: %s", filename);
+            editor->dirty = 0;
+            return;
+        }
+
+        status_set(editor, "Unable to open file: %s", strerror(errno));
+        syntax_select(editor);
+        editor->dirty = 0;
+        return;
+    }
+
+    if (S_ISDIR(file_stat.st_mode)) {
+        status_set(editor, "Unable to open file: Is a directory");
+        syntax_select(editor);
+        editor->dirty = 0;
+        return;
+    }
+
     fp = fopen(filename, "r");
     if (fp == NULL) {
+        status_set(editor, "Unable to open file: %s", strerror(errno));
         syntax_select(editor);
-        status_set(editor, "New file: %s", filename);
         editor->dirty = 0;
         return;
     }
@@ -58,6 +82,10 @@ void fileio_open(Editor *editor, const char *filename)
         }
 
         editor_insert_row(editor, editor->row_count, line, (size_t) line_len);
+    }
+
+    if (ferror(fp)) {
+        status_set(editor, "Unable to read file: %s", strerror(errno));
     }
 
     free(line);
@@ -79,7 +107,7 @@ int fileio_save(Editor *editor)
     if (editor->filename == NULL) {
         prompt_filename = prompt_read(editor, "Save as: %s");
         if (prompt_filename == NULL) {
-            status_set(editor, "Save cancelled");
+            status_set(editor, "Save canceled");
             return -1;
         }
 
@@ -107,24 +135,28 @@ int fileio_save(Editor *editor)
     if (fp == NULL) {
         free(temp_filename);
         free(buf);
-        status_set(editor, "Could not write %s", editor->filename);
+        status_set(editor, "Save failed: %s", strerror(errno));
         return -1;
     }
 
     written = fwrite(buf, 1, (size_t) len, fp);
     if (fclose(fp) != 0 || written != (size_t) len) {
+        int save_errno = errno != 0 ? errno : EIO;
+
         remove(temp_filename);
         free(temp_filename);
         free(buf);
-        status_set(editor, "Could not write %s", editor->filename);
+        status_set(editor, "Save failed: %s", strerror(save_errno));
         return -1;
     }
 
     if (rename(temp_filename, editor->filename) != 0) {
+        int save_errno = errno;
+
         remove(temp_filename);
         free(temp_filename);
         free(buf);
-        status_set(editor, "Could not save %s", editor->filename);
+        status_set(editor, "Save failed: %s", strerror(save_errno));
         return -1;
     }
 

@@ -15,6 +15,40 @@ static void buffer_update_row_indexes(Editor *editor, int start)
     }
 }
 
+static int buffer_max_cursor_y(Editor *editor)
+{
+    if (editor->row_count == 0) {
+        return 0;
+    }
+
+    return editor->row_count - 1;
+}
+
+static int buffer_max_cursor_x(Editor *editor)
+{
+    if (editor->cursor_y >= 0 && editor->cursor_y < editor->row_count) {
+        return editor->rows[editor->cursor_y].size;
+    }
+
+    return 0;
+}
+
+static void buffer_clamp_cursor(Editor *editor)
+{
+    if (editor->cursor_y < 0) {
+        editor->cursor_y = 0;
+    }
+    if (editor->cursor_y > buffer_max_cursor_y(editor)) {
+        editor->cursor_y = buffer_max_cursor_y(editor);
+    }
+    if (editor->cursor_x < 0) {
+        editor->cursor_x = 0;
+    }
+    if (editor->cursor_x > buffer_max_cursor_x(editor)) {
+        editor->cursor_x = buffer_max_cursor_x(editor);
+    }
+}
+
 // Insert one initialized row and shift later rows down. Invalid insertion points
 // are ignored so callers can probe without corrupting the buffer.
 void editor_insert_row(Editor *editor, int at, const char *s, size_t len)
@@ -69,6 +103,8 @@ void editor_delete_row(Editor *editor, int at)
 
 void editor_insert_char(Editor *editor, int c)
 {
+    buffer_clamp_cursor(editor);
+
     if (editor->cursor_y == editor->row_count) {
         int dirty_before = editor->dirty;
 
@@ -92,6 +128,8 @@ void editor_insert_char(Editor *editor, int c)
 void editor_insert_newline(Editor *editor)
 {
     EditorRow *row;
+
+    buffer_clamp_cursor(editor);
 
     if (editor->cursor_y < 0) {
         return;
@@ -129,6 +167,8 @@ void editor_delete_char(Editor *editor)
 {
     EditorRow *row;
     int previous_size;
+
+    buffer_clamp_cursor(editor);
 
     if (editor->cursor_y < 0 || editor->cursor_y >= editor->row_count) {
         return;

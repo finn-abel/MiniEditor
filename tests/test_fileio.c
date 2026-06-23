@@ -13,6 +13,7 @@ int main(void)
 {
     Editor editor;
     const char *path = "/tmp/minieditor_fileio_test.txt";
+    const char *missing_path = "/tmp/minieditor_missing_file.txt";
     const char *save_path = "/tmp/minieditor_save_test.txt";
     const char *prompt_save_path = "/tmp/minieditor_prompt_save_test.txt";
     FILE *fp;
@@ -39,6 +40,23 @@ int main(void)
 
     editor_free(&editor);
 
+    unlink(missing_path);
+    editor_init(&editor);
+    fileio_open(&editor, missing_path);
+    assert(editor.filename != NULL);
+    assert(strcmp(editor.filename, missing_path) == 0);
+    assert(editor.row_count == 0);
+    assert(editor.dirty == 0);
+    assert(strstr(editor.status_message, "New file") != NULL);
+    editor_free(&editor);
+
+    editor_init(&editor);
+    fileio_open(&editor, "/tmp");
+    assert(editor.row_count == 0);
+    assert(editor.dirty == 0);
+    assert(strstr(editor.status_message, "Is a directory") != NULL);
+    editor_free(&editor);
+
     editor_init(&editor);
     free(editor.filename);
     editor.filename = malloc(strlen(save_path) + 1);
@@ -58,6 +76,18 @@ int main(void)
     fclose(fp);
     saved[saved_len] = '\0';
     assert(strcmp(saved, "hello\nworld") == 0);
+    editor_free(&editor);
+
+    editor_init(&editor);
+    free(editor.filename);
+    editor.filename = malloc(strlen("/tmp/") + 1);
+    assert(editor.filename != NULL);
+    strcpy(editor.filename, "/tmp/");
+    editor_insert_row(&editor, 0, "cannot save here", 16);
+    editor.dirty = 1;
+    assert(fileio_save(&editor) == -1);
+    assert(editor.dirty == 1);
+    assert(strstr(editor.status_message, "Save failed") != NULL);
     editor_free(&editor);
 
     editor_init(&editor);
@@ -130,7 +160,7 @@ int main(void)
         assert(dup2(dev_null, STDOUT_FILENO) != -1);
         close(dev_null);
 
-        assert(fileio_save(&editor) == -1);
+    assert(fileio_save(&editor) == -1);
 
         assert(dup2(saved_stdout, STDOUT_FILENO) != -1);
         close(saved_stdout);
@@ -139,10 +169,11 @@ int main(void)
     }
     assert(editor.filename == NULL);
     assert(editor.dirty == 1);
-    assert(strcmp(editor.status_message, "Save cancelled") == 0);
+    assert(strcmp(editor.status_message, "Save canceled") == 0);
     editor_free(&editor);
 
     unlink(path);
+    unlink(missing_path);
     unlink(save_path);
     unlink(prompt_save_path);
     return 0;

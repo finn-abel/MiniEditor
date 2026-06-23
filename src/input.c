@@ -14,11 +14,7 @@ static int input_max_cursor_x(Editor *editor)
         return editor->rows[editor->cursor_y].size;
     }
 
-    if (editor->screen_cols <= 0) {
-        return 0;
-    }
-
-    return editor->screen_cols - 1;
+    return 0;
 }
 
 static int input_max_cursor_y(Editor *editor)
@@ -27,11 +23,23 @@ static int input_max_cursor_y(Editor *editor)
         return editor->row_count - 1;
     }
 
-    if (editor->screen_rows <= 0) {
-        return 0;
-    }
+    return 0;
+}
 
-    return editor->screen_rows - 1;
+static void input_clamp_cursor(Editor *editor)
+{
+    if (editor->cursor_y < 0) {
+        editor->cursor_y = 0;
+    }
+    if (editor->cursor_y > input_max_cursor_y(editor)) {
+        editor->cursor_y = input_max_cursor_y(editor);
+    }
+    if (editor->cursor_x < 0) {
+        editor->cursor_x = 0;
+    }
+    if (editor->cursor_x > input_max_cursor_x(editor)) {
+        editor->cursor_x = input_max_cursor_x(editor);
+    }
 }
 
 // Move within the currently visible editable area. File rows will eventually
@@ -69,9 +77,7 @@ static void input_move_cursor(Editor *editor, int key)
             break;
     }
 
-    if (editor->cursor_x > input_max_cursor_x(editor)) {
-        editor->cursor_x = input_max_cursor_x(editor);
-    }
+    input_clamp_cursor(editor);
 }
 
 static void input_delete_forward(Editor *editor)
@@ -159,9 +165,7 @@ void input_process_keypress(Editor *editor)
             break;
     }
 
-    if (editor->cursor_x > input_max_cursor_x(editor)) {
-        editor->cursor_x = input_max_cursor_x(editor);
-    }
+    input_clamp_cursor(editor);
 
     if (reset_quit_times) {
         editor->quit_times = MiniEditor_QUIT_TIMES;
