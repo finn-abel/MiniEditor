@@ -1,6 +1,7 @@
 #include "search.h"
 
 #include "prompt.h"
+#include "syntax.h"
 #include "terminal.h"
 
 #include <stdlib.h>
@@ -16,8 +17,7 @@ static void search_clear_matches(Editor *editor)
 
     for (index = 0; index < editor->row_count; index++) {
         if (editor->rows[index].highlight != NULL) {
-            memset(editor->rows[index].highlight, HL_NORMAL,
-                   (size_t) editor->rows[index].render_size);
+            syntax_update(editor, &editor->rows[index]);
         }
     }
 }

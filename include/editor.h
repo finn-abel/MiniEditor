@@ -6,6 +6,8 @@
 
 #include "row.h"
 
+typedef struct EditorSyntax EditorSyntax;
+
 #define MiniEditor_QUIT_TIMES 3
 
 /*
@@ -29,6 +31,7 @@ typedef struct Editor {
     int row_count;
     int dirty;
     char *filename;
+    const EditorSyntax *syntax;
     char status_message[80];
     time_t status_message_time;
     EditorRow *rows;

@@ -11,7 +11,14 @@
  */
 enum EditorHighlight {
     HL_NORMAL = 0,
-    HL_MATCH
+    HL_COMMENT,
+    HL_MLCOMMENT,
+    HL_KEYWORD1,
+    HL_KEYWORD2,
+    HL_STRING,
+    HL_NUMBER,
+    HL_MATCH,
+    HL_PREPROCESSOR
 };
 
 /*
@@ -25,6 +32,7 @@ typedef struct EditorRow {
     int render_size;
     char *render;
     unsigned char *highlight;
+    int highlight_open_comment;
 } EditorRow;
 
 /*

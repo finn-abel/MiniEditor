@@ -22,6 +22,7 @@ void editor_init(Editor *editor)
     editor->row_count = 0;
     editor->dirty = 0;
     editor->filename = NULL;
+    editor->syntax = NULL;
     editor->status_message[0] = '\0';
     editor->status_message_time = 0;
     editor->rows = NULL;
@@ -50,6 +51,7 @@ void editor_free(Editor *editor)
     editor->row_count = 0;
     editor->dirty = 0;
     editor->filename = NULL;
+    editor->syntax = NULL;
     editor->status_message[0] = '\0';
     editor->status_message_time = 0;
     editor->rows = NULL;

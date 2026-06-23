@@ -1,5 +1,7 @@
 #include "buffer.h"
 
+#include "syntax.h"
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -38,6 +40,7 @@ void editor_insert_row(Editor *editor, int at, const char *s, size_t len)
     row_init(&editor->rows[at], at, s, len);
     editor->row_count++;
     buffer_update_row_indexes(editor, at + 1);
+    syntax_update(editor, &editor->rows[at]);
     editor->dirty++;
 }
 
@@ -58,6 +61,9 @@ void editor_delete_row(Editor *editor, int at)
 
     editor->row_count--;
     buffer_update_row_indexes(editor, at);
+    if (at < editor->row_count) {
+        syntax_update(editor, &editor->rows[at]);
+    }
     editor->dirty++;
 }
 
@@ -78,6 +84,7 @@ void editor_insert_char(Editor *editor, int c)
     }
 
     row_insert_char(&editor->rows[editor->cursor_y], editor->cursor_x, c);
+    syntax_update(editor, &editor->rows[editor->cursor_y]);
     editor->cursor_x++;
     editor->dirty++;
 }
@@ -111,6 +118,7 @@ void editor_insert_newline(Editor *editor)
         row->size = editor->cursor_x;
         row->chars[row->size] = '\0';
         row_update_render(row);
+        syntax_update(editor, row);
         editor->cursor_y++;
     }
 
@@ -133,6 +141,7 @@ void editor_delete_char(Editor *editor)
     row = &editor->rows[editor->cursor_y];
     if (editor->cursor_x > 0) {
         row_delete_char(row, editor->cursor_x - 1);
+        syntax_update(editor, row);
         editor->cursor_x--;
         editor->dirty++;
         return;
@@ -141,6 +150,7 @@ void editor_delete_char(Editor *editor)
     previous_size = editor->rows[editor->cursor_y - 1].size;
     row_append_string(&editor->rows[editor->cursor_y - 1], row->chars,
                       (size_t) row->size);
+    syntax_update(editor, &editor->rows[editor->cursor_y - 1]);
     editor_delete_row(editor, editor->cursor_y);
     editor->cursor_y--;
     editor->cursor_x = previous_size;

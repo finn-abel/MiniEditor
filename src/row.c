@@ -13,6 +13,7 @@ void row_init(EditorRow *row, int index, const char *s, size_t len)
     row->render_size = 0;
     row->render = NULL;
     row->highlight = NULL;
+    row->highlight_open_comment = 0;
 
     if (row->chars == NULL) {
         row->size = 0;
@@ -37,6 +38,7 @@ void row_free(EditorRow *row)
     row->highlight = NULL;
     row->size = 0;
     row->render_size = 0;
+    row->highlight_open_comment = 0;
 }
 
 // Expand raw characters into their visible terminal form. Tabs become spaces up
@@ -85,6 +87,7 @@ void row_update_render(EditorRow *row)
     row->render = render;
     row->render_size = render_index;
     row->highlight = highlight;
+    row->highlight_open_comment = 0;
 }
 
 // Count visible columns up to a raw character position, accounting for tab

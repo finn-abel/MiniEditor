@@ -5,6 +5,7 @@
 #include "buffer.h"
 #include "prompt.h"
 #include "status.h"
+#include "syntax.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,6 +43,7 @@ void fileio_open(Editor *editor, const char *filename)
 
     fp = fopen(filename, "r");
     if (fp == NULL) {
+        syntax_select(editor);
         status_set(editor, "New file: %s", filename);
         editor->dirty = 0;
         return;
@@ -60,6 +62,7 @@ void fileio_open(Editor *editor, const char *filename)
 
     free(line);
     fclose(fp);
+    syntax_select(editor);
     editor->dirty = 0;
 }
 
@@ -127,6 +130,7 @@ int fileio_save(Editor *editor)
 
     free(temp_filename);
     free(buf);
+    syntax_select(editor);
     editor->dirty = 0;
     status_set(editor, "%d bytes written to disk", len);
     return 0;

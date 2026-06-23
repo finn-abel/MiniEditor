@@ -1,6 +1,7 @@
 #include "render.h"
 
 #include "abuf.h"
+#include "syntax.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -31,9 +32,17 @@ static void render_draw_file_row(Editor *editor, AppendBuffer *ab, int row_index
 
         if (highlight != current_highlight) {
             if (highlight == HL_MATCH) {
-                abuf_append(ab, "\x1b[7m", 4);
-            } else {
+                abuf_append(ab, "\x1b[34;7m", 7);
+            } else if (highlight == HL_NORMAL) {
                 abuf_append(ab, "\x1b[m", 3);
+            } else {
+                char color[16];
+                int color_len = snprintf(color, sizeof(color), "\x1b[%dm",
+                                         syntax_color(highlight));
+
+                if (color_len > 0 && color_len < (int) sizeof(color)) {
+                    abuf_append(ab, color, color_len);
+                }
             }
             current_highlight = highlight;
         }
@@ -126,9 +135,10 @@ static void render_draw_status_bar(Editor *editor, AppendBuffer *ab)
     int line_info_len;
     int spaces;
 
-    len = snprintf(status, sizeof(status), "%s - %d lines",
+    len = snprintf(status, sizeof(status), "%s - %d lines | %s",
                    editor->filename != NULL ? editor->filename : "[No Name]",
-                   editor->row_count);
+                   editor->row_count,
+                   editor->syntax != NULL ? editor->syntax->filetype : "no ft");
     if (len < 0) {
         len = 0;
     }
