@@ -142,6 +142,12 @@ static void render_draw_status_bar(Editor *editor, AppendBuffer *ab)
     if (len < 0) {
         len = 0;
     }
+    // snprintf returns the length it *would* have written, so clamp to the
+    // bytes actually stored before clamping to the screen width. Otherwise a
+    // long filename on a wide terminal makes abuf_append read past `status`.
+    if (len >= (int) sizeof(status)) {
+        len = (int) sizeof(status) - 1;
+    }
     if (len > editor->screen_cols) {
         len = editor->screen_cols;
     }

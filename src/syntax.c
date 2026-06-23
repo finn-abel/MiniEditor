@@ -35,7 +35,7 @@ static int syntax_db_entries(void)
 // Separators define token boundaries for keywords and numbers.
 static int syntax_is_separator(int c)
 {
-    return isspace(c) || c == '\0' ||
+    return isspace((unsigned char) c) || c == '\0' ||
            strchr(",.()+-/*=~%<>[];{}", c) != NULL;
 }
 
@@ -221,7 +221,7 @@ void syntax_update(Editor *editor, EditorRow *row)
         }
 
         if ((editor->syntax->flags & HL_HIGHLIGHT_NUMBERS) != 0) {
-            if ((isdigit(c) && (previous_separator ||
+            if ((isdigit((unsigned char) c) && (previous_separator ||
                                 previous_highlight == HL_NUMBER)) ||
                 (c == '.' && previous_highlight == HL_NUMBER)) {
                 row->highlight[index] = HL_NUMBER;
