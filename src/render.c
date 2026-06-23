@@ -9,8 +9,10 @@
 
 static void render_draw_file_row(Editor *editor, AppendBuffer *ab, int row_index)
 {
+    int index;
     int len = editor->rows[row_index].render_size - editor->col_offset;
     int text_cols = editor->screen_cols - editor->line_number_width - 1;
+    int current_highlight = HL_NORMAL;
 
     if (text_cols < 0) {
         text_cols = 0;
@@ -23,8 +25,24 @@ static void render_draw_file_row(Editor *editor, AppendBuffer *ab, int row_index
         len = text_cols;
     }
 
-    if (len > 0) {
-        abuf_append(ab, &editor->rows[row_index].render[editor->col_offset], len);
+    for (index = 0; index < len; index++) {
+        int render_index = index + editor->col_offset;
+        int highlight = editor->rows[row_index].highlight[render_index];
+
+        if (highlight != current_highlight) {
+            if (highlight == HL_MATCH) {
+                abuf_append(ab, "\x1b[7m", 4);
+            } else {
+                abuf_append(ab, "\x1b[m", 3);
+            }
+            current_highlight = highlight;
+        }
+
+        abuf_append(ab, &editor->rows[row_index].render[render_index], 1);
+    }
+
+    if (current_highlight != HL_NORMAL) {
+        abuf_append(ab, "\x1b[m", 3);
     }
 }
 

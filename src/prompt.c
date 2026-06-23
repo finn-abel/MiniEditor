@@ -25,6 +25,12 @@ static int prompt_grow(char **buffer, int capacity)
 // reusable inline input field without owning any terminal drawing details.
 char *prompt_read(Editor *editor, const char *prompt)
 {
+    return prompt_read_with_callback(editor, prompt, NULL);
+}
+
+char *prompt_read_with_callback(Editor *editor, const char *prompt,
+                                PromptCallback callback)
+{
     int len = 0;
     int capacity = 32;
     char *buffer = malloc((size_t) capacity);
@@ -75,6 +81,10 @@ char *prompt_read(Editor *editor, const char *prompt)
                 len++;
                 buffer[len] = '\0';
             }
+        }
+
+        if (callback != NULL) {
+            callback(editor, buffer, key);
         }
     }
 }

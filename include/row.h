@@ -6,6 +6,15 @@
 #define MiniEditor_TAB_STOP 8
 
 /*
+ * Describes per-render-column highlighting.
+ * Search temporarily marks matching columns with HL_MATCH.
+ */
+enum EditorHighlight {
+    HL_NORMAL = 0,
+    HL_MATCH
+};
+
+/*
  * Stores one editable line and its terminal-ready rendered form.
  * The render buffer expands tabs so cursor math can use visible columns.
  */

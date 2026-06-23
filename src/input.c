@@ -2,6 +2,7 @@
 
 #include "buffer.h"
 #include "fileio.h"
+#include "search.h"
 #include "status.h"
 #include "terminal.h"
 
@@ -112,6 +113,9 @@ void input_process_keypress(Editor *editor)
             break;
         case CTRL_KEY('s'):
             fileio_save(editor);
+            break;
+        case CTRL_KEY('f'):
+            search_find(editor);
             break;
         case '\r':
         case '\n':
