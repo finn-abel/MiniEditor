@@ -5,11 +5,9 @@
 #include "buffer.h"
 #include "editor.h"
 
-int main(void)
+static void test_insert_and_delete_rows(void)
 {
     Editor editor;
-    char *serialized;
-    int serialized_len;
 
     editor_init(&editor);
 
@@ -26,6 +24,7 @@ int main(void)
     assert(strcmp(editor.rows[1].chars, "second") == 0);
     assert(strcmp(editor.rows[2].chars, "third") == 0);
 
+    /* Out-of-range insertion points are ignored. */
     editor_insert_row(&editor, -1, "bad", 3);
     editor_insert_row(&editor, 5, "bad", 3);
     assert(editor.row_count == 3);
@@ -39,14 +38,22 @@ int main(void)
     assert(strcmp(editor.rows[0].chars, "first") == 0);
     assert(strcmp(editor.rows[1].chars, "third") == 0);
 
+    /* Out-of-range deletes are ignored. */
     editor_delete_row(&editor, -1);
     editor_delete_row(&editor, 4);
     assert(editor.row_count == 2);
     assert(editor.dirty == 4);
 
     editor_free(&editor);
+}
+
+static void test_insert_char_clamps_cursor(void)
+{
+    Editor editor;
 
     editor_init(&editor);
+
+    /* An out-of-range cursor is clamped before inserting into a new row. */
     editor.cursor_y = 99;
     editor.cursor_x = 99;
     editor_insert_char(&editor, 'h');
@@ -63,65 +70,119 @@ int main(void)
     assert(editor.cursor_x == 2);
     assert(editor.dirty == 3);
 
+    editor_free(&editor);
+}
+
+static void test_newline_splits_row(void)
+{
+    Editor editor;
+
+    editor_init(&editor);
+    editor_insert_char(&editor, 'h');
+    editor_insert_char(&editor, '!');
+    editor_insert_char(&editor, 'i');
+
+    editor.cursor_x = 2;
     editor_insert_newline(&editor);
     assert(editor.row_count == 2);
-    assert(editor.cursor_x == 0);
-    assert(editor.cursor_y == 1);
     assert(strcmp(editor.rows[0].chars, "h!") == 0);
     assert(strcmp(editor.rows[1].chars, "i") == 0);
+    assert(editor.cursor_y == 1);
+    assert(editor.cursor_x == 0);
 
-    editor_insert_char(&editor, 'w');
-    editor_insert_char(&editor, 'o');
-    assert(strcmp(editor.rows[1].chars, "woi") == 0);
+    editor_free(&editor);
+}
+
+static void test_newline_appends_when_cursor_below_buffer(void)
+{
+    Editor editor;
+
+    editor_init(&editor);
+    editor_insert_char(&editor, 'a');
+    editor_insert_char(&editor, 'b');
 
     editor.cursor_y = 99;
     editor.cursor_x = 99;
     editor_insert_newline(&editor);
-    assert(editor.row_count == 3);
-    assert(editor.cursor_y == 2);
-    assert(editor.cursor_x == 0);
-    assert(strcmp(editor.rows[2].chars, "") == 0);
-
-    editor_delete_char(&editor);
     assert(editor.row_count == 2);
     assert(editor.cursor_y == 1);
-    assert(editor.cursor_x == 3);
-    assert(strcmp(editor.rows[1].chars, "woi") == 0);
-
-    editor.cursor_x = 1;
-    editor.cursor_y = 1;
-    editor_delete_char(&editor);
-    assert(strcmp(editor.rows[1].chars, "oi") == 0);
     assert(editor.cursor_x == 0);
+    assert(strcmp(editor.rows[1].chars, "") == 0);
 
+    editor_free(&editor);
+}
+
+static void test_delete_char_within_row(void)
+{
+    Editor editor;
+
+    editor_init(&editor);
+    editor_insert_row(&editor, 0, "h!oi", 4);
+    editor.cursor_y = 0;
+    editor.cursor_x = 3;
+    editor_delete_char(&editor);
+    assert(strcmp(editor.rows[0].chars, "h!i") == 0);
+    assert(editor.cursor_x == 2);
+
+    editor_free(&editor);
+}
+
+static void test_delete_char_joins_rows(void)
+{
+    Editor editor;
+
+    editor_init(&editor);
+    editor_insert_row(&editor, 0, "ab", 2);
+    editor_insert_row(&editor, 1, "cd", 2);
+
+    editor.cursor_y = 1;
+    editor.cursor_x = 0;
     editor_delete_char(&editor);
     assert(editor.row_count == 1);
     assert(editor.cursor_y == 0);
     assert(editor.cursor_x == 2);
-    assert(strcmp(editor.rows[0].chars, "h!oi") == 0);
+    assert(strcmp(editor.rows[0].chars, "abcd") == 0);
 
+    editor_free(&editor);
+}
+
+static void test_delete_char_noop_at_origin(void)
+{
+    Editor editor;
+    int dirty_before;
+
+    editor_init(&editor);
+    editor_insert_row(&editor, 0, "abc", 3);
+    editor.cursor_y = 0;
     editor.cursor_x = 0;
-    editor.cursor_y = 0;
-    {
-        int dirty_before = editor.dirty;
+    dirty_before = editor.dirty;
 
-        editor_delete_char(&editor);
-        assert(editor.dirty == dirty_before);
-        assert(strcmp(editor.rows[0].chars, "h!oi") == 0);
-    }
-
-    editor.cursor_x = 2;
-    editor.cursor_y = 0;
-    editor.cursor_x++;
     editor_delete_char(&editor);
-    assert(strcmp(editor.rows[0].chars, "h!i") == 0);
+    assert(editor.dirty == dirty_before);
+    assert(strcmp(editor.rows[0].chars, "abc") == 0);
 
+    editor_free(&editor);
+}
+
+static void test_newline_at_edges_and_serialize(void)
+{
+    Editor editor;
+    char *serialized;
+    int serialized_len;
+
+    editor_init(&editor);
+    editor_insert_char(&editor, 'h');
+    editor_insert_char(&editor, '!');
+    editor_insert_char(&editor, 'i');
+
+    /* Newline at column 0 opens a blank line above the text. */
     editor.cursor_x = 0;
     editor_insert_newline(&editor);
     assert(editor.row_count == 2);
     assert(strcmp(editor.rows[0].chars, "") == 0);
     assert(strcmp(editor.rows[1].chars, "h!i") == 0);
 
+    /* Newline at end of a row appends a trailing blank line. */
     editor.cursor_y = 1;
     editor.cursor_x = editor.rows[1].size;
     editor_insert_newline(&editor);
@@ -135,5 +196,17 @@ int main(void)
     free(serialized);
 
     editor_free(&editor);
+}
+
+int main(void)
+{
+    test_insert_and_delete_rows();
+    test_insert_char_clamps_cursor();
+    test_newline_splits_row();
+    test_newline_appends_when_cursor_below_buffer();
+    test_delete_char_within_row();
+    test_delete_char_joins_rows();
+    test_delete_char_noop_at_origin();
+    test_newline_at_edges_and_serialize();
     return 0;
 }

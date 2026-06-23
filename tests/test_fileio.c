@@ -9,18 +9,56 @@
 #include "editor.h"
 #include "fileio.h"
 
-int main(void)
+// Replace editor->filename with a heap copy of path (editor_free owns it).
+static void set_filename(Editor *editor, const char *path)
+{
+    free(editor->filename);
+    editor->filename = malloc(strlen(path) + 1);
+    assert(editor->filename != NULL);
+    strcpy(editor->filename, path);
+}
+
+// Call fileio_save while feeding prompt keystrokes on stdin and discarding the
+// redraw on stdout. Used for the save-as prompt and cancel paths.
+static int save_with_stdin(Editor *editor, const char *input, int len)
+{
+    int pipe_fds[2];
+    int saved_stdin;
+    int saved_stdout;
+    int dev_null;
+    int result;
+
+    assert(pipe(pipe_fds) == 0);
+    assert(write(pipe_fds[1], input, (size_t) len) == len);
+    close(pipe_fds[1]);
+
+    saved_stdin = dup(STDIN_FILENO);
+    assert(saved_stdin != -1);
+    assert(dup2(pipe_fds[0], STDIN_FILENO) != -1);
+    close(pipe_fds[0]);
+
+    saved_stdout = dup(STDOUT_FILENO);
+    assert(saved_stdout != -1);
+    dev_null = open("/dev/null", O_WRONLY);
+    assert(dev_null != -1);
+    assert(dup2(dev_null, STDOUT_FILENO) != -1);
+    close(dev_null);
+
+    result = fileio_save(editor);
+
+    assert(dup2(saved_stdout, STDOUT_FILENO) != -1);
+    close(saved_stdout);
+    assert(dup2(saved_stdin, STDIN_FILENO) != -1);
+    close(saved_stdin);
+    return result;
+}
+
+static void test_open_existing_file(void)
 {
     Editor editor;
     const char *path = "/tmp/minieditor_fileio_test.txt";
-    const char *missing_path = "/tmp/minieditor_missing_file.txt";
-    const char *save_path = "/tmp/minieditor_save_test.txt";
-    const char *prompt_save_path = "/tmp/minieditor_prompt_save_test.txt";
-    FILE *fp;
-    char saved[64];
-    size_t saved_len;
+    FILE *fp = fopen(path, "w");
 
-    fp = fopen(path, "w");
     assert(fp != NULL);
     fputs("#include <stdio.h>\n\nint main(void) {\r\n    return 0;\n}", fp);
     fclose(fp);
@@ -39,6 +77,13 @@ int main(void)
     assert(strcmp(editor.rows[4].chars, "}") == 0);
 
     editor_free(&editor);
+    unlink(path);
+}
+
+static void test_open_missing_file(void)
+{
+    Editor editor;
+    const char *missing_path = "/tmp/minieditor_missing_file.txt";
 
     unlink(missing_path);
     editor_init(&editor);
@@ -49,6 +94,11 @@ int main(void)
     assert(editor.dirty == 0);
     assert(strstr(editor.status_message, "New file") != NULL);
     editor_free(&editor);
+}
+
+static void test_open_directory_reports_error(void)
+{
+    Editor editor;
 
     editor_init(&editor);
     fileio_open(&editor, "/tmp");
@@ -56,12 +106,18 @@ int main(void)
     assert(editor.dirty == 0);
     assert(strstr(editor.status_message, "Is a directory") != NULL);
     editor_free(&editor);
+}
+
+static void test_save_writes_file(void)
+{
+    Editor editor;
+    const char *save_path = "/tmp/minieditor_save_test.txt";
+    FILE *fp;
+    char saved[64];
+    size_t saved_len;
 
     editor_init(&editor);
-    free(editor.filename);
-    editor.filename = malloc(strlen(save_path) + 1);
-    assert(editor.filename != NULL);
-    strcpy(editor.filename, save_path);
+    set_filename(&editor, save_path);
     editor_insert_row(&editor, 0, "hello", 5);
     editor_insert_row(&editor, 1, "world", 5);
     editor.dirty = 1;
@@ -76,105 +132,82 @@ int main(void)
     fclose(fp);
     saved[saved_len] = '\0';
     assert(strcmp(saved, "hello\nworld") == 0);
+
     editor_free(&editor);
+    unlink(save_path);
+}
+
+static void test_save_failure_on_directory_path(void)
+{
+    Editor editor;
 
     editor_init(&editor);
-    free(editor.filename);
-    editor.filename = malloc(strlen("/tmp/") + 1);
-    assert(editor.filename != NULL);
-    strcpy(editor.filename, "/tmp/");
+    set_filename(&editor, "/tmp/");
     editor_insert_row(&editor, 0, "cannot save here", 16);
     editor.dirty = 1;
+
     assert(fileio_save(&editor) == -1);
     assert(editor.dirty == 1);
     assert(strstr(editor.status_message, "Save failed") != NULL);
+
     editor_free(&editor);
+}
+
+static void test_save_prompts_for_filename(void)
+{
+    Editor editor;
+    const char *prompt_save_path = "/tmp/minieditor_prompt_save_test.txt";
+    char input[128];
+    int input_len;
+    FILE *fp;
+    char saved[64];
+    size_t saved_len;
 
     editor_init(&editor);
     editor_insert_row(&editor, 0, "prompted", 8);
     editor.dirty = 1;
-    {
-        int pipe_fds[2];
-        int saved_stdin;
-        int saved_stdout;
-        int dev_null;
 
-        assert(pipe(pipe_fds) == 0);
-        assert(write(pipe_fds[1], prompt_save_path, strlen(prompt_save_path)) ==
-               (ssize_t) strlen(prompt_save_path));
-        assert(write(pipe_fds[1], "\r", 1) == 1);
-        close(pipe_fds[1]);
-
-        saved_stdin = dup(STDIN_FILENO);
-        assert(saved_stdin != -1);
-        assert(dup2(pipe_fds[0], STDIN_FILENO) != -1);
-        close(pipe_fds[0]);
-
-        saved_stdout = dup(STDOUT_FILENO);
-        assert(saved_stdout != -1);
-        dev_null = open("/dev/null", O_WRONLY);
-        assert(dev_null != -1);
-        assert(dup2(dev_null, STDOUT_FILENO) != -1);
-        close(dev_null);
-
-        assert(fileio_save(&editor) == 0);
-
-        assert(dup2(saved_stdout, STDOUT_FILENO) != -1);
-        close(saved_stdout);
-        assert(dup2(saved_stdin, STDIN_FILENO) != -1);
-        close(saved_stdin);
-    }
+    input_len = snprintf(input, sizeof(input), "%s\r", prompt_save_path);
+    assert(save_with_stdin(&editor, input, input_len) == 0);
     assert(editor.filename != NULL);
     assert(strcmp(editor.filename, prompt_save_path) == 0);
     assert(editor.dirty == 0);
+
     fp = fopen(prompt_save_path, "rb");
     assert(fp != NULL);
     saved_len = fread(saved, 1, sizeof(saved) - 1, fp);
     fclose(fp);
     saved[saved_len] = '\0';
     assert(strcmp(saved, "prompted") == 0);
+
     editor_free(&editor);
+    unlink(prompt_save_path);
+}
+
+static void test_save_canceled_at_prompt(void)
+{
+    Editor editor;
 
     editor_init(&editor);
     editor_insert_row(&editor, 0, "cancel", 6);
     editor.dirty = 1;
-    {
-        int pipe_fds[2];
-        int saved_stdin;
-        int saved_stdout;
-        int dev_null;
 
-        assert(pipe(pipe_fds) == 0);
-        assert(write(pipe_fds[1], "\x1b", 1) == 1);
-        close(pipe_fds[1]);
-
-        saved_stdin = dup(STDIN_FILENO);
-        assert(saved_stdin != -1);
-        assert(dup2(pipe_fds[0], STDIN_FILENO) != -1);
-        close(pipe_fds[0]);
-
-        saved_stdout = dup(STDOUT_FILENO);
-        assert(saved_stdout != -1);
-        dev_null = open("/dev/null", O_WRONLY);
-        assert(dev_null != -1);
-        assert(dup2(dev_null, STDOUT_FILENO) != -1);
-        close(dev_null);
-
-    assert(fileio_save(&editor) == -1);
-
-        assert(dup2(saved_stdout, STDOUT_FILENO) != -1);
-        close(saved_stdout);
-        assert(dup2(saved_stdin, STDIN_FILENO) != -1);
-        close(saved_stdin);
-    }
+    assert(save_with_stdin(&editor, "\x1b", 1) == -1);
     assert(editor.filename == NULL);
     assert(editor.dirty == 1);
     assert(strcmp(editor.status_message, "Save canceled") == 0);
-    editor_free(&editor);
 
-    unlink(path);
-    unlink(missing_path);
-    unlink(save_path);
-    unlink(prompt_save_path);
+    editor_free(&editor);
+}
+
+int main(void)
+{
+    test_open_existing_file();
+    test_open_missing_file();
+    test_open_directory_reports_error();
+    test_save_writes_file();
+    test_save_failure_on_directory_path();
+    test_save_prompts_for_filename();
+    test_save_canceled_at_prompt();
     return 0;
 }

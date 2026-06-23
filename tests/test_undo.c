@@ -5,11 +5,10 @@
 #include "editor.h"
 #include "undo.h"
 
-int main(void)
+static void test_undo_insert_char(void)
 {
     Editor editor;
 
-    /* --- undo insert char --- */
     editor_init(&editor);
 
     editor_insert_char(&editor, 'a');
@@ -27,14 +26,18 @@ int main(void)
     assert(strcmp(editor.rows[0].chars, "a") == 0);
 
     undo_undo(&editor);
-    /* empty buffer: row created with char was also auto-created, so undoing
-       the first char should remove the row entirely */
+    /* The first char also auto-created the row, so undoing it removes the
+       row entirely. */
     assert(editor.row_count == 0);
     assert(!undo_can_undo(&editor.undo_stack));
 
     editor_free(&editor);
+}
 
-    /* --- undo delete char --- */
+static void test_undo_delete_char(void)
+{
+    Editor editor;
+
     editor_init(&editor);
 
     editor_insert_char(&editor, 'x');
@@ -50,8 +53,12 @@ int main(void)
     assert(editor.cursor_x == 3);
 
     editor_free(&editor);
+}
 
-    /* --- undo insert newline (mid-row split) --- */
+static void test_undo_newline_mid_row(void)
+{
+    Editor editor;
+
     editor_init(&editor);
 
     editor_insert_char(&editor, 'h');
@@ -71,8 +78,12 @@ int main(void)
     assert(editor.cursor_x == 1);
 
     editor_free(&editor);
+}
 
-    /* --- undo insert newline (at end of row) --- */
+static void test_undo_newline_end_of_row(void)
+{
+    Editor editor;
+
     editor_init(&editor);
 
     editor_insert_char(&editor, 'a');
@@ -87,8 +98,12 @@ int main(void)
     assert(strcmp(editor.rows[0].chars, "ab") == 0);
 
     editor_free(&editor);
+}
 
-    /* --- undo insert newline (at start of row) --- */
+static void test_undo_newline_start_of_row(void)
+{
+    Editor editor;
+
     editor_init(&editor);
 
     editor_insert_char(&editor, 'a');
@@ -105,8 +120,12 @@ int main(void)
     assert(editor.cursor_x == 0);
 
     editor_free(&editor);
+}
 
-    /* --- undo join row (backspace at col 0) --- */
+static void test_undo_join_row(void)
+{
+    Editor editor;
+
     editor_init(&editor);
 
     editor_insert_char(&editor, 'a');
@@ -118,7 +137,7 @@ int main(void)
     assert(strcmp(editor.rows[0].chars, "ab") == 0);
     assert(strcmp(editor.rows[1].chars, "cd") == 0);
 
-    /* backspace at col 0 of row 1 joins rows */
+    /* Backspace at col 0 of row 1 joins the rows. */
     editor.cursor_y = 1;
     editor.cursor_x = 0;
     editor_delete_char(&editor);
@@ -135,8 +154,12 @@ int main(void)
     assert(editor.cursor_x == 0);
 
     editor_free(&editor);
+}
 
-    /* --- redo after undo --- */
+static void test_redo_insert_char(void)
+{
+    Editor editor;
+
     editor_init(&editor);
 
     editor_insert_char(&editor, 'p');
@@ -151,8 +174,86 @@ int main(void)
     assert(!undo_can_redo(&editor.undo_stack));
 
     editor_free(&editor);
+}
 
-    /* --- redo stack cleared on new edit after undo --- */
+static void test_redo_delete_char(void)
+{
+    Editor editor;
+
+    editor_init(&editor);
+
+    editor_insert_char(&editor, 'x');
+    editor_insert_char(&editor, 'y');
+    editor_insert_char(&editor, 'z');
+    editor_delete_char(&editor);
+    assert(strcmp(editor.rows[0].chars, "xy") == 0);
+
+    undo_undo(&editor);
+    assert(strcmp(editor.rows[0].chars, "xyz") == 0);
+
+    undo_redo(&editor);
+    assert(strcmp(editor.rows[0].chars, "xy") == 0);
+
+    editor_free(&editor);
+}
+
+static void test_redo_insert_newline(void)
+{
+    Editor editor;
+
+    editor_init(&editor);
+
+    editor_insert_char(&editor, 'h');
+    editor_insert_char(&editor, 'i');
+    editor.cursor_x = 1;
+    editor_insert_newline(&editor);
+    assert(editor.row_count == 2);
+
+    undo_undo(&editor);
+    assert(editor.row_count == 1);
+    assert(strcmp(editor.rows[0].chars, "hi") == 0);
+
+    undo_redo(&editor);
+    assert(editor.row_count == 2);
+    assert(strcmp(editor.rows[0].chars, "h") == 0);
+    assert(strcmp(editor.rows[1].chars, "i") == 0);
+
+    editor_free(&editor);
+}
+
+static void test_redo_join_row(void)
+{
+    Editor editor;
+
+    editor_init(&editor);
+
+    editor_insert_char(&editor, 'a');
+    editor_insert_char(&editor, 'b');
+    editor_insert_newline(&editor);
+    editor_insert_char(&editor, 'c');
+    editor_insert_char(&editor, 'd');
+
+    editor.cursor_y = 1;
+    editor.cursor_x = 0;
+    editor_delete_char(&editor);
+    assert(editor.row_count == 1);
+    assert(strcmp(editor.rows[0].chars, "abcd") == 0);
+
+    undo_undo(&editor);
+    assert(editor.row_count == 2);
+    assert(strcmp(editor.rows[1].chars, "cd") == 0);
+
+    undo_redo(&editor);
+    assert(editor.row_count == 1);
+    assert(strcmp(editor.rows[0].chars, "abcd") == 0);
+
+    editor_free(&editor);
+}
+
+static void test_redo_cleared_on_new_edit(void)
+{
+    Editor editor;
+
     editor_init(&editor);
 
     editor_insert_char(&editor, '1');
@@ -169,15 +270,19 @@ int main(void)
     assert(!undo_can_redo(&editor.undo_stack));
 
     editor_free(&editor);
+}
 
-    /* --- dirty flag: undo back to saved state --- */
+static void test_dirty_tracks_saved_position(void)
+{
+    Editor editor;
+
     editor_init(&editor);
 
     editor_insert_char(&editor, 'a');
     editor_insert_char(&editor, 'b');
     assert(editor.dirty > 0);
 
-    /* simulate a save */
+    /* Simulate a save at the current position. */
     editor.dirty = 0;
     undo_mark_saved(&editor.undo_stack);
 
@@ -191,39 +296,61 @@ int main(void)
     assert(editor.dirty > 0);
 
     editor_free(&editor);
+}
 
-    /* --- undo_can_undo / undo_can_redo on empty stack --- */
+static void test_undo_redo_empty_stack_noop(void)
+{
+    Editor editor;
+
     editor_init(&editor);
     assert(!undo_can_undo(&editor.undo_stack));
     assert(!undo_can_redo(&editor.undo_stack));
-    undo_undo(&editor);  /* no-op, no crash */
-    undo_redo(&editor);  /* no-op, no crash */
+    undo_undo(&editor); /* no-op, no crash */
+    undo_redo(&editor); /* no-op, no crash */
     editor_free(&editor);
+}
 
-    /* --- stack cap: push beyond UNDO_MAX, oldest evicted --- */
+static void test_stack_cap_evicts_oldest(void)
+{
+    Editor editor;
+    int i;
+
     editor_init(&editor);
 
-    {
-        int i;
-        /* Insert UNDO_MAX + 1 characters. The first character's undo entry
-           will be evicted to make room. */
-        for (i = 0; i < UNDO_MAX + 1; i++) {
-            editor_insert_char(&editor, 'x');
-        }
-        assert(editor.undo_stack.count == UNDO_MAX);
-        assert(editor.undo_stack.position == UNDO_MAX);
-
-        /* Undo UNDO_MAX times should leave one char that can't be undone. */
-        for (i = 0; i < UNDO_MAX; i++) {
-            undo_undo(&editor);
-        }
-        assert(!undo_can_undo(&editor.undo_stack));
-        /* One character remains because its entry was evicted. */
-        assert(editor.row_count == 1);
-        assert(editor.rows[0].size == 1);
+    /* Insert UNDO_MAX + 1 characters. The first character's undo entry is
+       evicted to make room. */
+    for (i = 0; i < UNDO_MAX + 1; i++) {
+        editor_insert_char(&editor, 'x');
     }
+    assert(editor.undo_stack.count == UNDO_MAX);
+    assert(editor.undo_stack.position == UNDO_MAX);
+
+    for (i = 0; i < UNDO_MAX; i++) {
+        undo_undo(&editor);
+    }
+    assert(!undo_can_undo(&editor.undo_stack));
+    /* One character remains because its entry was evicted. */
+    assert(editor.row_count == 1);
+    assert(editor.rows[0].size == 1);
 
     editor_free(&editor);
+}
 
+int main(void)
+{
+    test_undo_insert_char();
+    test_undo_delete_char();
+    test_undo_newline_mid_row();
+    test_undo_newline_end_of_row();
+    test_undo_newline_start_of_row();
+    test_undo_join_row();
+    test_redo_insert_char();
+    test_redo_delete_char();
+    test_redo_insert_newline();
+    test_redo_join_row();
+    test_redo_cleared_on_new_edit();
+    test_dirty_tracks_saved_position();
+    test_undo_redo_empty_stack_noop();
+    test_stack_cap_evicts_oldest();
     return 0;
 }
