@@ -1,6 +1,7 @@
 #include "buffer.h"
 
 #include "syntax.h"
+#include "undo.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -103,9 +104,15 @@ void editor_delete_row(Editor *editor, int at)
 
 void editor_insert_char(Editor *editor, int c)
 {
+    int new_row;
+
     buffer_clamp_cursor(editor);
 
-    if (editor->cursor_y == editor->row_count) {
+    new_row = (editor->cursor_y == editor->row_count);
+    undo_push_insert_char(&editor->undo_stack, editor->cursor_y, editor->cursor_x,
+                          editor->cursor_y, editor->cursor_x, (char) c, new_row);
+
+    if (new_row) {
         int dirty_before = editor->dirty;
 
         editor_insert_row(editor, editor->row_count, "", 0);
@@ -128,12 +135,25 @@ void editor_insert_char(Editor *editor, int c)
 void editor_insert_newline(Editor *editor)
 {
     EditorRow *row;
+    int undo_row_y;
 
     buffer_clamp_cursor(editor);
 
     if (editor->cursor_y < 0) {
         return;
     }
+
+    // Compute the index of the new row before mutating, so the undo entry
+    // knows which row to delete when reversing this operation.
+    if (editor->cursor_y >= editor->row_count) {
+        undo_row_y = editor->row_count;
+    } else if (editor->cursor_x <= 0) {
+        undo_row_y = editor->cursor_y;
+    } else {
+        undo_row_y = editor->cursor_y + 1;
+    }
+    undo_push_insert_newline(&editor->undo_stack, editor->cursor_y,
+                             editor->cursor_x, undo_row_y);
 
     if (editor->cursor_y >= editor->row_count) {
         editor_insert_row(editor, editor->row_count, "", 0);
@@ -180,6 +200,10 @@ void editor_delete_char(Editor *editor)
 
     row = &editor->rows[editor->cursor_y];
     if (editor->cursor_x > 0) {
+        undo_push_delete_char(&editor->undo_stack, editor->cursor_y,
+                              editor->cursor_x, editor->cursor_y,
+                              editor->cursor_x - 1,
+                              row->chars[editor->cursor_x - 1]);
         row_delete_char(row, editor->cursor_x - 1);
         syntax_update(editor, row);
         editor->cursor_x--;
@@ -188,6 +212,9 @@ void editor_delete_char(Editor *editor)
     }
 
     previous_size = editor->rows[editor->cursor_y - 1].size;
+    undo_push_join_row(&editor->undo_stack, editor->cursor_y, editor->cursor_x,
+                       editor->cursor_y, previous_size,
+                       row->chars, row->size);
     row_append_string(&editor->rows[editor->cursor_y - 1], row->chars,
                       (size_t) row->size);
     syntax_update(editor, &editor->rows[editor->cursor_y - 1]);

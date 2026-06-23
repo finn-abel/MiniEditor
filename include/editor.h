@@ -5,6 +5,7 @@
 #include <termios.h>
 
 #include "row.h"
+#include "undo.h"
 
 typedef struct EditorSyntax EditorSyntax;
 
@@ -36,6 +37,7 @@ typedef struct Editor {
     time_t status_message_time;
     EditorRow *rows;
     struct termios original_termios;
+    UndoStack undo_stack;
 } Editor;
 
 /*

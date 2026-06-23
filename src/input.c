@@ -5,6 +5,7 @@
 #include "search.h"
 #include "status.h"
 #include "terminal.h"
+#include "undo.h"
 
 #define CTRL_KEY(key) ((key) & 0x1f)
 
@@ -119,6 +120,12 @@ void input_process_keypress(Editor *editor)
             break;
         case CTRL_KEY('s'):
             fileio_save(editor);
+            break;
+        case CTRL_KEY('z'):
+            undo_undo(editor);
+            break;
+        case CTRL_KEY('y'):
+            undo_redo(editor);
             break;
         case CTRL_KEY('f'):
             search_find(editor);

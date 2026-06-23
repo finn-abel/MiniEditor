@@ -1,5 +1,7 @@
 #include "editor.h"
 
+#include "undo.h"
+
 #include <stdlib.h>
 
 // Set defaults that let small unit tests use an Editor without requiring a
@@ -26,6 +28,7 @@ void editor_init(Editor *editor)
     editor->status_message[0] = '\0';
     editor->status_message_time = 0;
     editor->rows = NULL;
+    undo_stack_init(&editor->undo_stack);
 }
 
 // Release all rows owned by this editor before marking the session inactive.
@@ -55,6 +58,7 @@ void editor_free(Editor *editor)
     editor->status_message[0] = '\0';
     editor->status_message_time = 0;
     editor->rows = NULL;
+    undo_stack_free(&editor->undo_stack);
 }
 
 void editor_scroll(Editor *editor)

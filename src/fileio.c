@@ -6,6 +6,7 @@
 #include "prompt.h"
 #include "status.h"
 #include "syntax.h"
+#include "undo.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -164,6 +165,7 @@ int fileio_save(Editor *editor)
     free(buf);
     syntax_select(editor);
     editor->dirty = 0;
+    undo_mark_saved(&editor->undo_stack);
     status_set(editor, "%d bytes written to disk", len);
     return 0;
 }
